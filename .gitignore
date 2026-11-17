@@ -1,0 +1,4 @@
+build/
+Source/pdex.*
+ETCH_CRANK.pdx/
+*.raw

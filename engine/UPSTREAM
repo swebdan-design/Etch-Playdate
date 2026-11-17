@@ -1,0 +1,6 @@
+repository  swebdan-design/ETCH-DS
+commit      8294b6d178d33e66afecc2de533f3f7d7b63d33f
+map         engine/{ipc.h,seq_core.c,seq_core.h}   <- common/*
+            engine/*.c, engine/*.h              <- arm9/source/*
+            engine/tests/*                      <- tests/host/*
+note        corrosion/ is checked separately, against ETCH (Etch---GB)

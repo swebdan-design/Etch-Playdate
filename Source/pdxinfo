@@ -1,0 +1,6 @@
+name=ETCH CRANK
+author=Synth Centric
+description=A generative acid machine for Playdate. The crank is the filter.
+bundleID=com.synthcentric.etchcrank
+version=0.1
+buildNumber=1
