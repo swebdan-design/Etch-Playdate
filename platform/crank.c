@@ -8,6 +8,7 @@
 #include "pump.h"
 
 crank_ui_t crank_ui;
+int32_t crank_mod_cut_q8, crank_mod_res_q8;
 static int32_t deg_rem;        /* the part of a step not yet turned */
 
 void app_send(uint32_t cmd);
@@ -95,11 +96,32 @@ void crank_ui_frame(int32_t delta_q8, uint8_t docked, uint8_t b_held,
     /* targets to the audio callback: only on change, and never before the
      * crank has first moved something (until then the engine's own values
      * stand untouched, exactly as on ETCH DS) */
-    if (c->cut_q8 != c->sent_cut || c->res_q8 != c->sent_res) {
-        c->engaged = 1;
-        if (c->cut_q8 != c->sent_cut) app_send(CMD(PCMD_CUTOFF, (uint32_t)c->cut_q8));
-        if (c->res_q8 != c->sent_res) app_send(CMD(PCMD_RES, (uint32_t)c->res_q8));
-        c->sent_cut = c->cut_q8;
-        c->sent_res = c->res_q8;
+    {
+        int32_t tc = clampq(c->cut_q8 + crank_mod_cut_q8), tr = clampq(c->res_q8 + crank_mod_res_q8);
+        if (tc != c->sent_cut || tr != c->sent_res) {
+            c->engaged = 1;
+            if (tc != c->sent_cut) app_send(CMD(PCMD_CUTOFF, (uint32_t)tc));
+            if (tr != c->sent_res) app_send(CMD(PCMD_RES, (uint32_t)tr));
+            c->sent_cut = tc;
+            c->sent_res = tr;
+        }
     }
+}
+
+void crank_ui_reload(uint8_t stored_cut, uint8_t stored_res)
+{
+    uint8_t docked = crank_ui.docked;
+    crank_ui_init(stored_cut, stored_res, docked);
+    app_send(CMD(PCMD_RESET, 0));
+}
+
+void crank_set_stored(uint8_t cut, uint8_t res)
+{
+    crank_ui_t *c = &crank_ui;
+    int32_t oc = c->cut_q8 - ((int32_t)c->stored_cut << 8);
+    int32_t orr = c->res_q8 - ((int32_t)c->stored_res << 8);
+    c->stored_cut = cut & 127;
+    c->stored_res = res & 127;
+    c->cut_q8 = clampq(((int32_t)c->stored_cut << 8) + oc);
+    c->res_q8 = clampq(((int32_t)c->stored_res << 8) + orr);
 }

@@ -35,7 +35,8 @@
 enum {
     PCMD_CUTOFF = 0xC0,             /* arg = live cutoff, Q8 (0 .. 127 << 8)  */
     PCMD_RES,                       /* arg = live resonance, Q8               */
-    PCMD_CRANK_IDLE                 /* the crank holds no offset any more     */
+    PCMD_QUARTER,                   /* arg = control ticks in a quarter step  */
+    PCMD_RESET                      /* a project load: the engine's own values */
 };
 
 void     pump_init(shared_t *sh);   /* seq_init, clear the rings           */

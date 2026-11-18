@@ -62,6 +62,16 @@ static inline int32_t crank_cut_offset_q8(void)
 /* audio callback: a PCMD_* from the command ring */
 void crank_command(uint32_t cmd);
 void crank_audio_reset(void);         /* from pump_init                    */
+/* modulation (CPL's mod matrix) added to the targets, Q8; update loop */
+extern int32_t crank_mod_cut_q8, crank_mod_res_q8;
+/* re-take the stored values after a project load (no glide, no offset) */
+void crank_ui_reload(uint8_t stored_cut, uint8_t stored_res);
+/* SYNTH edits of CUTOFF / RESO: the stored value moves, the offset stays */
+void crank_set_stored(uint8_t cut, uint8_t res);
+/* the motion lane the audio half plays (CPL sets it), and where it is */
+extern const int16_t *volatile crank_lane;
+extern volatile uint8_t crank_lane_pos;
+
 /* audio callback: the value ACID is using now (Q8), for the meter */
 extern volatile int32_t crank_cut_now_q8, crank_res_now_q8;
 
