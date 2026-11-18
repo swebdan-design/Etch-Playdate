@@ -8,6 +8,7 @@
 #include "audio.h"
 #include "resample.h"
 #include "crank.h"
+#include "plat.h"
 
 static shared_t *psh;
 static uint32_t blk;                      /* next engine block to render   */
@@ -87,6 +88,7 @@ static void render_block(int16_t *l, int16_t *r)
     psh->blk_requested = k + 1;
     psh->blk_played = k;
     pstats.seq_sum += clk() - t;
+    foundry_guard_flush();
     audio_render_block(&psh->ev[k & (AUDIO_NBLK - 1)], k, l, r);
     psh->blk_done = k + 1;
     if (pump_tap) pump_tap(l, r, k);
