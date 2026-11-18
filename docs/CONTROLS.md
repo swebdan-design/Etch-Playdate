@@ -1,29 +1,27 @@
-# ETCH CRANK — the button map
+# ETCH CRANK — controls
 
 ETCH CRANK — by Synth Centric — for Playdate
 
-The Playdate has a D-pad, A, B and the crank. It has no SELECT and no START, and Menu and Lock belong to the system. ETCH's grammar is kept exactly. **Held B stands in for SELECT**, and the crank is for performing, never for scrolling menus.
-
-✓ = built in milestone 1. Everything else is the plan for later milestones and still open for your review (see "Conflicts").
+The Playdate has a D-pad, A, B and the crank. It has no SELECT or START, and Menu and Lock belong to the system. ETCH's grammar is kept exactly: **held B stands in for SELECT**, and the crank is for performing, never for scrolling menus.
 
 ## 1. Everywhere
 
-| Buttons | Action | ETCH equivalent | M1 |
-|---|---|---|:-:|
-| **crank** | Filter cutoff: the live offset over the stored value. Relative, 540° closed to open, hard stops at both ends | (new) | ✓ |
-| **B + crank** | Resonance | (new) | ✓ |
-| **dock the crank** | Cutoff and resonance glide back to the stored values over one beat | (new) | ✓ |
-| **B + dock** | Keep the live cutoff and resonance as the stored values | (new) | ✓ |
-| **B + DOWN** | Play / stop | START | ✓ |
-| **B + UP** | Arm crank recording (one pass from the next bar into a motion lane) | (new) | message only |
-| **B + LEFT / RIGHT** | Previous / next screen: SYNTH ← TRACK ← LIVE → GEN → SONG → FILE | SELECT + LEFT / RIGHT | message only (one screen in M1) |
-| **B** (tap) | On LIVE: FILL on / off (latched). Elsewhere: back / cancel | ETCH LIVE's B = SELECT + START | ✓ (FILL) |
-| A hold on a value + crank | Ride that value live | (new) | |
-| A hold on a scene + crank | Morph towards that scene | (new) | |
+| Buttons | Action | ETCH equivalent |
+|---|---|---|
+| **crank** | Filter cutoff: the live offset over the stored value. Relative; 540° from closed to open; hard stops at both ends | (new) |
+| **B + crank** | Resonance | (new) |
+| **A held on a value + crank** | Ride that value (any value on SYNTH, GEN, SONG and the LIVE macros) | (new) |
+| **A held on a scene + crank** | Morph towards that scene (LIVE pads S1–S4); half a turn is the whole morph | (new) |
+| **dock the crank** | Cutoff and resonance glide back to the stored values over one beat | (new) |
+| **B + dock** | Keep the live cutoff and resonance as the stored values | (new) |
+| **B + LEFT / RIGHT** | Previous / next screen: SYNTH ← TRACK ← LIVE → GEN → SONG → FILE (wraps) | SELECT + LEFT / RIGHT |
+| **B + DOWN** | Play / stop | START |
+| **B + UP** | Arm crank recording: from the next bar, one pass of the crank is written to the pattern's cutoff lane, which then plays back (B + UP again disarms) | (new) |
+| **B** (tap) | LIVE: FILL on / off (latched). Elsewhere: back / cancel | ETCH LIVE's B (= SELECT + START) |
 
-**What counts as a B tap:** B is pressed and released with no other button and no crank movement in between. So B + crank, B + dock and B + D-pad never toggle the fill.
+**A B tap** is B pressed and released with no other button and no crank movement in between, so B + crank, B + dock and B + D-pad never toggle the fill.
 
-## 2. The editing grammar (every screen, unchanged from ETCH)
+## 2. The editing grammar (every screen, as ETCH)
 
 | Buttons | Meaning |
 |---|---|
@@ -33,30 +31,65 @@ The Playdate has a D-pad, A, B and the crank. It has no SELECT and no START, and
 | A held + UP / DOWN | Value coarse (an octave on a note) |
 | B + A | Delete, or reset to default |
 
-On list screens, plain LEFT / RIGHT also changes the value, as in ETCH.
+On list screens (SYNTH, GEN, SONG) plain LEFT / RIGHT also changes the value, as in ETCH.
 
-## 3. Where the displaced ETCH combos go
+## 3. Screen by screen
 
-Making held B into SELECT collides with two families of ETCH controls: the SELECT combos B can't also mean, and ETCH's own B + D-pad uses. Nothing is dropped. Each one moves to a place ETCH already uses for the same kind of thing:
+**LIVE** (home). Rows BASS, KICK, SNARE, HAT, OPEN (CORROSION's), RUST, METAL, NOISE (the ETCH DS layers); the pads; the macros.
 
-| ETCH | Its job | On ETCH CRANK | Why there |
-|---|---|---|---|
-| SELECT + A | Evolve at the next bar | LIVE's **EVOLVE** pad (A), and GEN's EVOLVE | B + A must stay "delete" (grammar) |
-| SELECT + B | Undo (one level) | LIVE's **UNDO** pad (A), and GEN's UNDO | B + B is not a chord |
-| SELECT + START | FILL latch | **B tap on LIVE** (ETCH already has it) | unchanged |
-| SELECT + UP / DOWN | Queue the next / previous pattern | the PATTERN readout in LIVE's status band: **A + UP / DOWN** (value grammar); and SONG | B + UP / DOWN are taken by REC and play |
-| TRACK: B + UP / DOWN | Jump a beat | TRACK's step column (#): **LEFT / RIGHT** jump a beat | B + UP / DOWN are taken |
-| TRACK: B + LEFT / RIGHT | Previous / next pattern | TRACK's header PATTERN field: **A + LEFT / RIGHT** | B + LEFT / RIGHT change screens |
-| SYNTH: B + LEFT / RIGHT | Previous / next channel | the channel tab row: **LEFT / RIGHT** (ETCH already allows this) | as above |
+| Where | Buttons | Action |
+|---|---|---|
+| bass / RUST step | A | empty: the last note; a note: remove it |
+| | A + LEFT / RIGHT, A + UP / DOWN | semitone, octave |
+| | B + A | remove |
+| drum / METAL / NOISE step | A, B + A | hit on / off, clear |
+| lane name | A | mute |
+| | A + LEFT / RIGHT | mute group 1, 2 or none |
+| pads | A | FILL (one shot), REGEN, EVOLVE, UNDO; S1–S4: store (empty) or recall; M1 M2: toggle the group |
+| | B + A on a scene | clear it |
+| | A held + crank on a scene | morph towards it |
+| macros | LEFT / RIGHT | choose |
+| | A + D-pad | change: PAT (queues a pattern from the next bar), ENV, DEC, ACC, DRV, RGN (what REGEN replaces), EVO (STABLE / DRIFT / CORRODE), MUT |
 
-## 4. The system menu
+A hand edit of RUST, METAL or NOISE locks that pattern's layers from the answering generator.
 
-Up to three custom items. The plan was **CODE**, **DEMOS** and **SPEAKER / TILT**.
+**TRACK**. ETCH's tracker: `# NOT A S L K S H O P CD`, and a LAYERS page: `# RST C A T M N RK RS RH RO`.
 
-* **Milestone 1 has one temporary item, `cpu test`** (a checkbox). It runs ETCH DS's CPU test (see the report) so the meter can be read on hardware. It goes away when the real items arrive.
-* **Finding:** in the Simulator (SDK 3.1.2), ETCH CRANK's audio stops while the system menu is open (report §3). By the rule in the brief, **CODE entry moves into the app** (FILE). I recommend moving DEMOS into FILE as well, and using the menu for **SPEAKER** and **TILT**, which are settings, not performance.
+| Where | Buttons | Action |
+|---|---|---|
+| header | LEFT / RIGHT | PATTERN or PAGE |
+| | A + LEFT / RIGHT on PATTERN | previous / next pattern, from the next bar (ETCH: B + LEFT / RIGHT) |
+| | A on PAGE | ETCH / LAYERS |
+| NOT | A, A + D-pad, B + A | as ETCH (A on a note: tie) |
+| A S L / K S H O | A, B + A | toggle, clear |
+| P | A + D-pad, B + A | chance, back to 8/8 |
+| CD | A + D-pad, B + A | condition, back to every loop |
+| # | A + UP / DOWN | jump a beat (ETCH: B + UP / DOWN) |
+| RST, C A T, M N | as above | RUST note, chord / accent / tie, METAL / NOISE |
+| RK..RO | A + D-pad, B + A | ratchet 1–4 hits, back to 1 |
 
-## 5. Conflicts to confirm
+**SYNTH**. Tabs BAS RST KCK SNR HAT OPN MTL NSE FX MOD EVO CPU on the top row (LEFT / RIGHT there change tab; ETCH: B + LEFT / RIGHT). Below, a list: LEFT / RIGHT ±1, A + UP / DOWN coarse, B + A default, A plays the channel, A held + crank rides.
 
-1. **Evolve / undo shortcuts.** With B + A kept as delete, ETCH's global SELECT + A / SELECT + B shortcuts survive only as pads. That costs one cursor move, and LIVE is home, so I think it's acceptable. The alternative would be a new chord such as A + B, which the brief rules out ("don't invent other schemes").
-2. **Screen wrap.** ETCH (Game Boy) stops at the ends of the screen row; ETCH DS's series spec v1 (an unmerged branch) says it wraps. ETCH CRANK will follow whichever is the series rule.
+**GEN**. CORROSION's settings (list). SEED: A gives a new seed and GEN ALL. CODE: LEFT / RIGHT pick a digit (12, plus the 4th group), A + UP / DOWN change it, A loads it, B + A clears the 4th group. Actions (D-pad, A): GEN ALL, GEN BASS, GEN DRUMS, GROOVE, EVOLVE, UNDO, LOCK BASS, LOCK PATT, ANSWER (a new 4th group: the layers answer), NO LAYERS.
+
+**SONG**. SONG MODE (A), BPM, SWING; the 16-slot chain (A + LEFT / RIGHT pattern, A + UP / DOWN bars, A jump, B + A END); COPY (A + D-pad where, A copies); CLEAR (A, A).
+
+**FILE**. NEW (A, A), LOAD (ETCH's demos D1–D8, the boot song, the 16 saves; A, A), SAVE (A; A, A over a used slot; B + A then A erases), CODE (to GEN's code row), IMPORT DS, IMPORT GB (A, A), ABOUT (LEFT / RIGHT turn the pages). B (tap) goes back to the menu.
+
+## 4. Where ETCH's SELECT combos went
+
+Held B as SELECT collides with ETCH's own B + D-pad and with B + A (delete). Nothing is dropped; each moves to a place ETCH already uses for the same kind of thing (decided with the project owner):
+
+| ETCH | On ETCH CRANK |
+|---|---|
+| SELECT + A (evolve) | LIVE's EVOLVE pad, GEN's EVOLVE |
+| SELECT + B (undo) | LIVE's UNDO pad, GEN's UNDO |
+| SELECT + START (fill latch) | B tap on LIVE (as ETCH's LIVE) |
+| SELECT + UP / DOWN (queue a pattern) | LIVE's PAT macro (A + D-pad); TRACK's PATTERN; SONG |
+| TRACK: B + UP / DOWN (jump a beat) | TRACK's # column: A + UP / DOWN |
+| TRACK: B + LEFT / RIGHT (pattern) | TRACK's PATTERN field: A + LEFT / RIGHT |
+| SYNTH: B + LEFT / RIGHT (channel) | SYNTH's tab row: LEFT / RIGHT |
+
+## 5. The system menu
+
+**speaker** (auto / on / off: mono with a low-mid lift; auto turns it on when headphones are unplugged), **tilt** (on: tilting rides the delay send), **crank bite** (on: with the crank out, how open the filter is sets CORROSION's mutation amount). The Simulator silences the game while the menu is open, so CODE and the demos are in FILE.

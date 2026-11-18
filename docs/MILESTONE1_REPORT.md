@@ -2,6 +2,8 @@
 
 ETCH CRANK — by Synth Centric — for Playdate · Playdate SDK 3.1.2 · arm-none-eabi-gcc 13.2.1
 
+> **Since milestone 1** (see [PROJECT_REPORT.md](PROJECT_REPORT.md)): the temporary `cpu test` system-menu item moved to SYNTH → CPU; the system menu now holds speaker, tilt and crank bite; the resampler gained −1 dB of headroom (its CPU figures are unchanged); and the CPU table there adds RUST and the layers.
+
 **No Playdate hardware was available.** Everything below was measured on the host, under qemu-arm with the device's compiler and flags, and in the Playdate Simulator (headless). §4 lists what still needs a device.
 
 ## 1. What works
