@@ -9,7 +9,12 @@ DS's engine rate (16 756 991 / 512 = 32 728.498 Hz) to the Playdate's
       filter at a fractional delay of p / RS_PHASES input samples; the extra
       row (p = RS_PHASES) is row 0 shifted by one tap, so the audio path can
       interpolate between rows p and p + 1 without a wrap test.  Every row
-      sums to exactly 32768 (unity gain at DC, no ripple between phases).
+      sums to exactly RS_GAIN_Q15 (no ripple between phases).
+  RS_GAIN  0.89 (-1.0 dB): headroom for the interpolation's overshoot.  ETCH
+      DS's limiter holds the engine at 0.85 of full scale, but band-limited
+      interpolation of the limiter's flat tops and the crusher's steps
+      overshoots: measured up to 1.048 over the 16-bar consistency song.
+      With the gain, 0.93.  (The DS's DAC had no such filter.)
   RS_STEP  the input advance per output sample, 32.32 fixed point
       (16 756 991 / (512 * 44 100) * 2^32, rounded): the long-run rate error
       is below 2^-32, so ETCH DS's tempo is kept exactly.
@@ -27,6 +32,7 @@ FS_IN = 16756991 / 512          # 32 728.498 Hz
 FS_OUT = 44100.0
 CUTOFF = 15200.0                # Hz: passband edge, below the input Nyquist (16 364 Hz)
 BETA = 7.0                      # Kaiser window
+GAIN = 0.89                     # -1 dB of headroom (see above)
 
 
 def h(x):
@@ -47,8 +53,9 @@ def table():
         xs = np.array([(TAPS / 2 - 1 - k) + frac for k in range(TAPS)])
         c = h(xs)
         c = c / c.sum()
-        q = np.round(c * 32768).astype(int)
-        q[np.argmax(np.abs(q))] += 32768 - q.sum()     # exact unity
+        g = int(round(GAIN * 32768))
+        q = np.round(c * g).astype(int)
+        q[np.argmax(np.abs(q))] += g - q.sum()         # every row sums to exactly g
         rows.append(q)
     return rows
 
@@ -68,6 +75,7 @@ def main():
             f.write("    {" + ", ".join("%d" % v for v in r) + "},\n")
         f.write("};\n")
         f.write("const uint32_t rs_step_frac = %du;   /* x 2^-32 input samples */\n" % step)
+        f.write("const int32_t rs_gain_q15 = %d;      /* every row sums to this */\n" % int(round(GAIN * 32768)))
     print("wrote", out, "step", step, "abs-sum max", max(int(np.abs(r).sum()) for r in rows))
 
 

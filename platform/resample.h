@@ -20,5 +20,6 @@
 
 extern const int16_t rs_coef[RS_PHASES + 1][RS_TAPS];
 extern const uint32_t rs_step_frac;
+extern const int32_t rs_gain_q15;       /* 0.89: -1 dB of headroom for the overshoot */
 
 #endif

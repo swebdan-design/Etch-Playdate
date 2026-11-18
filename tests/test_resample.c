@@ -70,18 +70,18 @@ int main(void)
     int i;
     audio_engine_init();
 
-    /* DC: unity, to within the coefficient interpolation's rounding (1 LSB) */
+    /* DC: the resampler's gain (0.89, -1 dB headroom), to within 1-2 LSB */
     reset(0, 0.5);
     pump_pull(out_l, out_r, 4096);
     {
-        int ok = 1, lo = 32767, hi = -32768;
+        int ok = 1, lo = 32767, hi = -32768, want = (16384 * rs_gain_q15 + 16384) >> 15;
         for (i = 64; i < 4096; i++) {
-            if (abs(out_l[i] - 16384) > 2 || out_r[i] != out_l[i]) ok = 0;
+            if (abs(out_l[i] - want) > 2 || out_r[i] != out_l[i]) ok = 0;
             if (out_l[i] < lo) lo = out_l[i];
             if (out_l[i] > hi) hi = out_l[i];
         }
         CHECK(ok, "DC should pass at unity (%d..%d)", lo, hi);
-        printf("  DC: in 16384 -> out %d..%d\n", lo, hi);
+        printf("  DC: in 16384 -> out %d..%d (gain %.3f, %.2f dB)\n", lo, hi, rs_gain_q15 / 32768.0, 20 * log10(rs_gain_q15 / 32768.0));
     }
 
     /* tones: gain and the worst spurious component */
@@ -91,12 +91,12 @@ int main(void)
             double g, worst = 0, worst_hz = 0, f;
             reset(tones[i], 0.5);
             pump_pull(out_l, out_r, N);
-            g = mag_at(tones[i], 2048, 16384) / 0.5;
+            g = mag_at(tones[i], 2048, 16384) / 0.5 / (rs_gain_q15 / 32768.0);   /* relative to the gain */
             /* scan 20 Hz .. 22 kHz away from the tone */
             for (f = 20; f < 22000; f += 37) {
                 double m;
                 if (fabs(f - tones[i]) < 400) continue;
-                m = mag_at(f, 2048, 16384) / 0.5;
+                m = mag_at(f, 2048, 16384) / 0.5 / (rs_gain_q15 / 32768.0);
                 if (m > worst) { worst = m; worst_hz = f; }
             }
             printf("  %5.0f Hz: gain %+.2f dB, worst spurious %.1f dB at %.0f Hz\n",
