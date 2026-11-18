@@ -28,7 +28,6 @@
 #define T_RH  9
 enum { C_NUM, C_NOT, C_A, C_S, C_L, C_K, C_SN, C_H, C_O, C_P, C_CD, C_COUNT };
 static const int col_x[C_COUNT] = { 4, 22, 58, 70, 82, 104, 116, 128, 140, 162, 180 };
-static const char *const col_title[C_COUNT] = { "#", "NOT", "A", "S", "L", "K", "S", "H", "O", "P", "CD" };
 static const char *const cond_names[COND_COUNT] = { "--", "12", "22", "14", "24", "34", "44", "FI", "NF" };
 static int8_t trow = 0, tcol = C_NOT;           /* trow -1 = the PATTERN header */
 static uint8_t last_note = 24;
@@ -118,7 +117,6 @@ static void track_draw(void)
         else snprintf(b, sizeof b, "PATTERN %02u", SH->cur + 1);
         gfx_text(4, 67, F_MAIN, 1, sel ? C_WHITE : C_BLACK, b);
     }
-    for (c = 0; c < C_COUNT; c++) gfx_text(col_x[c], 78 - 0 - 9 + 0 * 0 + 0, F_SMALL, 1, C_BLACK, "");
     for (r = 0; r < 16; r++) {
         int y = T_Y + r * T_RH;
         uint8_t f = p->flags[r], t = f & STEP_TYPE_MASK;

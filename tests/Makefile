@@ -12,15 +12,20 @@
 HOSTCC ?= cc
 ROOT   := ..
 CFLAGS := -O2 -Wall -Wno-unused-function -Wno-unused-result \
-          -I$(ROOT)/engine -I$(ROOT)/corrosion -I$(ROOT)/platform
+          -I$(ROOT)/engine -I$(ROOT)/corrosion -I$(ROOT)/platform -I$(ROOT)/layers
 CORR   := $(ROOT)/corrosion/corrosion.c $(ROOT)/corrosion/pattern.c $(ROOT)/corrosion/names.c
 ENGINE := $(ROOT)/engine/acid.arm.c $(ROOT)/engine/foundry.arm.c $(ROOT)/engine/fx.arm.c \
           $(ROOT)/engine/render.arm.c $(ROOT)/engine/dsp_tables.c $(ROOT)/engine/seq_core.c \
           $(ROOT)/engine/demo.c $(ROOT)/engine/evolve.c
 APP    := $(ROOT)/engine/edit.c $(ROOT)/engine/storage.c
 PORT   := $(ROOT)/platform/pump.c $(ROOT)/platform/crank.c $(ROOT)/platform/crank_audio.c \
-          $(ROOT)/platform/resample_tab.c $(ROOT)/platform/app_glue.c
-WRAP   := -Wl,--wrap=acid_render
+          $(ROOT)/platform/resample_tab.c $(ROOT)/platform/app_glue.c $(ROOT)/platform/foundry_guard.c
+UI     := $(ROOT)/platform/gfx1.c $(ROOT)/platform/font_ui.c $(ROOT)/platform/ui.c \
+          $(ROOT)/platform/scr_live.c $(ROOT)/platform/scr_track.c $(ROOT)/platform/scr_synth.c \
+          $(ROOT)/platform/scr_gen.c $(ROOT)/platform/scr_song.c $(ROOT)/platform/scr_file.c \
+          $(ROOT)/platform/cpl.c $(ROOT)/platform/proj.c $(ROOT)/platform/demos.c $(ROOT)/layers/layers.c
+WRAP   := -Wl,--wrap=acid_render -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build
+UIWRAP := $(WRAP) -Wl,--wrap=fx_limit -Wl,--wrap=corr_mutate
 OUT    := $(ROOT)/build/host
 
 # the ETCH DS side of the consistency test
@@ -40,7 +45,7 @@ endif
 
 .PHONY: all FORCE
 all: $(OUT)/test_generator $(OUT)/test_seq $(OUT)/test_dsp $(OUT)/consist_ds $(OUT)/consist_port \
-     $(OUT)/compare $(OUT)/test_crank $(OUT)/test_resample
+     $(OUT)/compare $(OUT)/test_crank $(OUT)/test_resample $(OUT)/test_ui
 	@echo "== ETCH's CORROSION tests (unmodified) against corrosion/ =="
 	@$(OUT)/test_generator | tail -1
 	@echo "== ETCH DS's sequencer tests (unmodified) against engine/ =="
@@ -59,6 +64,8 @@ all: $(OUT)/test_generator $(OUT)/test_seq $(OUT)/test_dsp $(OUT)/consist_ds $(O
 	@cd $(OUT) && ./test_crank
 	@echo "== resampler =="
 	@$(OUT)/test_resample
+	@echo "== the interface (scripted buttons and crank) =="
+	@cd $(OUT) && ./test_ui
 
 $(OUT)/test_generator: $(ROOT)/corrosion/tests/test_generator.c $(CORR)
 	@mkdir -p $(OUT)
@@ -93,3 +100,7 @@ $(OUT)/test_resample: test_resample.c $(ENGINE) $(APP) $(CORR) $(PORT)
 	$(HOSTCC) $(CFLAGS) -o $@ $^ -lm $(WRAP)
 
 FORCE:
+
+$(OUT)/test_ui: test_ui.c $(ENGINE) $(APP) $(CORR) $(PORT) $(UI)
+	@mkdir -p $(OUT)
+	$(HOSTCC) $(CFLAGS) -o $@ $^ -lm $(UIWRAP)

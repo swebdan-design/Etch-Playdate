@@ -297,8 +297,8 @@ static void draw_status(void)
     gfx_fill(64, 0, GFX_W - 64, 63, C_WHITE);
     /* header: name | song ... code */
     x = gfx_text(68, 2, F_MAIN, 1, C_BLACK, "ETCH CRANK");
-    x = gfx_text(x + 4, 2, F_MAIN, 1, C_BLACK, "|");
-    gfx_text(x + 4, 2, F_MAIN, 1, C_BLACK, song);
+    gfx_vline(x + 4, 2, 7, C_BLACK);
+    gfx_text(x + 9, 2, F_MAIN, 1, C_BLACK, song);
     if (*cpl_ext_code())
         snprintf(b, sizeof b, "%.4s-%.4s-%.4s-%s", code, code + 4, code + 8, cpl_ext_code());
     else

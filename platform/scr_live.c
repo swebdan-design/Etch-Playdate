@@ -303,7 +303,8 @@ static void live_draw(void)
         if (sel) gfx_fill(x - 2, MAC_Y - 2, 47, 30, C_BLACK);
         gfx_text(x, MAC_Y, F_SMALL, 1, sel ? C_WHITE : C_BLACK, mac_names[i]);
         mac_text(i, b);
-        gfx_text(x, MAC_Y + 9, F_MAIN, 2, sel ? C_WHITE : C_BLACK, b);
+        if (strlen(b) <= 3) gfx_text(x, MAC_Y + 9, F_MAIN, 2, sel ? C_WHITE : C_BLACK, b);
+        else gfx_text(x, MAC_Y + 13, F_MAIN, 1, sel ? C_WHITE : C_BLACK, b);
     }
 
     /* what is under the cursor */

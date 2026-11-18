@@ -169,7 +169,7 @@ static void gen_draw(void)
         x += 8;
     }
     if (area == A_CODE) gfx_frame(246, 76, 150, 15, C_BLACK);
-    gfx_text(248, 94, F_SMALL, 1, C_BLACK, "SEED KEY SCALE STYLE DEN SYNC ACC SLD OCT  + EXP");
+    gfx_text(248, 94, F_SMALL, 1, C_BLACK, "SEED  KEY SCL STY DEN SYN ACC SLD OCT  EXP");
     /* the actions */
     for (i = 0; i < 8; i++) {
         int ax = 248 + (i & 1) * 74, ay = 106 + (i >> 1) * 22, sel = area == A_ACT && act == i;

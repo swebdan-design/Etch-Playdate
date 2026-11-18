@@ -86,7 +86,7 @@ typedef struct {
     const char *caption;
     int  (*get)(void);
     void (*set)(int v);
-    int16_t min, max, coarse, dflt;
+    int32_t min, max, coarse, dflt;
     void (*fmt)(int v, char *out);       /* NULL: the number                  */
     void (*action)(void);                /* A tap; NULL: none                 */
 } row_t;

@@ -185,7 +185,7 @@ void cpl_lanes_evolve(uint8_t mode)
 /* ---- scenes -------------------------------------------------------------------------- */
 static scene_t morph_from;
 static int morph_to = -1;
-static int32_t morph_q8;                   /* 0 .. 127 << 8 */
+static int32_t morph_deg;                  /* crank degrees (Q8) into the morph: 0 .. 180 */
 
 static void apply_sound(const acid_params_t *a, const fx_params_t *f, uint8_t mutes, uint8_t with_mutes)
 {
@@ -223,7 +223,7 @@ void cpl_morph_begin(int i)
 {
     if (!cplp.scene[i & 3].used) { morph_to = -1; return; }
     morph_to = i & 3;
-    morph_q8 = 0;
+    morph_deg = 0;
     morph_from.acid = base_acid;
     morph_from.acid.cutoff = crank_ui.stored_cut;
     morph_from.acid.res = crank_ui.stored_res;
@@ -241,10 +241,10 @@ void cpl_morph_by(int32_t delta_q8)
     if (morph_to < 0) return;
     to = &cplp.scene[morph_to];
     /* the whole morph in 180 degrees of crank */
-    morph_q8 += delta_q8 * 127 / 180;
-    if (morph_q8 < 0) morph_q8 = 0;
-    if (morph_q8 > 127 * 256) morph_q8 = 127 * 256;
-    t = morph_q8 >> 8;
+    morph_deg += delta_q8;
+    if (morph_deg < 0) morph_deg = 0;
+    if (morph_deg > 180 * 256) morph_deg = 180 * 256;
+    t = (int)(morph_deg * 127 / (180 * 256));
     a = morph_from.acid;
     f = morph_from.fx;
     a.cutoff = mix8(a.cutoff, to->acid.cutoff, t); a.res = mix8(a.res, to->acid.res, t);
@@ -261,7 +261,7 @@ void cpl_morph_by(int32_t delta_q8)
     apply_sound(&a, &f, 0, 0);
 }
 
-uint8_t cpl_morph_amount(void) { return morph_to < 0 ? 0 : (uint8_t)(morph_q8 >> 8); }
+uint8_t cpl_morph_amount(void) { return morph_to < 0 ? 0 : (uint8_t)(morph_deg * 127 / (180 * 256)); }
 
 /* ---- mute groups ------------------------------------------------------------------------ */
 void cpl_mgroup_toggle(int g)
