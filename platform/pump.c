@@ -38,8 +38,10 @@ void app_send(uint32_t cmd)
     cmd_head = h + 1;
 }
 
-/* ---- engine-rate ring for the resampler ---------------------------------- */
-static int16_t ring_l[PUMP_RING], ring_r[PUMP_RING];
+/* ---- engine-rate ring for the resampler -----------------------------------
+ * Mirrored: every frame is written at i and i + PUMP_RING, so the 16-tap
+ * window starting anywhere in the first half is contiguous in memory. */
+static int16_t ring_l[2 * PUMP_RING], ring_r[2 * PUMP_RING];
 static uint32_t ring_w;                   /* engine frames written          */
 static uint32_t rs_i;                     /* resampler position: integer    */
 static uint32_t rs_f;                     /*   and 2^-32 fraction           */
@@ -103,8 +105,9 @@ static void ring_block(void)
     if (pump_source) { pump_source(l, r); blk++; }
     else render_block(l, r);
     for (i = 0; i < AUDIO_BLOCK; i++) {
-        ring_l[(w + i) & (PUMP_RING - 1)] = l[i];
-        ring_r[(w + i) & (PUMP_RING - 1)] = r[i];
+        uint32_t j = (w + i) & (PUMP_RING - 1);
+        ring_l[j] = ring_l[j + PUMP_RING] = l[i];
+        ring_r[j] = ring_r[j + PUMP_RING] = r[i];
     }
     ring_w = w + AUDIO_BLOCK;
 }
@@ -116,45 +119,74 @@ static inline int16_t sat16(int32_t v)
     return (int16_t)v;
 }
 
+/* two 16-bit products and an accumulate: the Cortex-M7's SMLAD, or the same
+ * integer arithmetic in C (exact: the sums never leave int32, see resample.h) */
+static inline uint32_t ld2(const int16_t *p) { uint32_t v; memcpy(&v, p, 4); return v; }
+static inline int32_t smlad(uint32_t a, uint32_t b, int32_t acc)
+{
+#if defined(__ARM_FEATURE_DSP)
+    int32_t r;
+    __asm__("smlad %0, %1, %2, %3" : "=r"(r) : "r"(a), "r"(b), "r"(acc));
+    return r;
+#else
+    return acc + (int32_t)(int16_t)a * (int16_t)b + (int32_t)(int16_t)(a >> 16) * (int16_t)(b >> 16);
+#endif
+}
+
+/* the filter at one phase, both channels, rounded and saturated to int16 */
+static inline void dot(const int16_t *xl, const int16_t *xr, const int16_t *c, int32_t *yl, int32_t *yr)
+{
+    int32_t al = 16384, ar = 16384;
+    uint32_t k;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC unroll 8
+#endif
+    for (k = 0; k < RS_TAPS; k += 2) {
+        uint32_t cc = ld2(c + k);
+        al = smlad(ld2(xl + k), cc, al);
+        ar = smlad(ld2(xr + k), cc, ar);
+    }
+    *yl = sat16(al >> 15);
+    *yr = sat16(ar >> 15);
+}
+
 void pump_pull(int16_t *left, int16_t *right, uint32_t len)
 {
-    uint32_t n, k, t0 = clk(), trs = 0, ta;
+    uint32_t n, t0 = clk(), trs = 0, ta;
+    uint32_t i = rs_i, f = rs_f, w = ring_w;
     for (n = 0; n < len; n++) {
-        int32_t c[RS_TAPS], al = 0, ar = 0;
-        uint32_t ph, fr, base;
-        const int16_t *c0, *c1;
-        /* the window needs frames rs_i - 7 .. rs_i + 8 */
-        while (ring_w <= rs_i + RS_TAPS / 2) {
+        int32_t l0, r0, l1, r1, fr;
+        uint32_t ph, base;
+        /* the window needs frames i - 7 .. i + 8 */
+        while (w <= i + RS_TAPS / 2) {
             trs += clk() - t0;              /* the block is charged to the engine */
             ring_block();
+            w = ring_w;
             t0 = clk();
         }
-        ph = rs_f >> (32 - RS_PHASE_BITS);
-        fr = (rs_f >> (32 - RS_PHASE_BITS - 15)) & 0x7FFF;
-        c0 = rs_coef[ph];
-        c1 = rs_coef[ph + 1];
-        for (k = 0; k < RS_TAPS; k++)
-            c[k] = c0[k] + (((c1[k] - c0[k]) * (int32_t)fr + 16384) >> 15);
-        base = rs_i - (RS_TAPS / 2 - 1);
-        for (k = 0; k < RS_TAPS; k++) {
-            uint32_t j = (base + k) & (PUMP_RING - 1);
-            al += ring_l[j] * c[k];
-            ar += ring_r[j] * c[k];
-        }
-        left[n] = sat16((al + 16384) >> 15);
-        right[n] = sat16((ar + 16384) >> 15);
+        ph = f >> (32 - RS_PHASE_BITS);
+        fr = (int32_t)((f >> (32 - RS_PHASE_BITS - 15)) & 0x7FFF);
+        base = (i - (RS_TAPS / 2 - 1)) & (PUMP_RING - 1);
+        /* the two neighbouring phases, then linear between them; both ends
+         * are int16, so (l1 - l0) * fr stays inside int32 */
+        dot(ring_l + base, ring_r + base, rs_coef[ph], &l0, &r0);
+        dot(ring_l + base, ring_r + base, rs_coef[ph + 1], &l1, &r1);
+        left[n] = (int16_t)(l0 + (((l1 - l0) * fr + 16384) >> 15));
+        right[n] = (int16_t)(r0 + (((r1 - r0) * fr + 16384) >> 15));
         {
-            uint32_t f = rs_f + rs_step_frac;
-            rs_i += (f < rs_f);             /* carry: one input frame on */
-            rs_f = f;
+            uint32_t g = f + rs_step_frac;
+            i += (g < f);                   /* carry: one input frame on */
+            f = g;
         }
     }
+    rs_i = i;
+    rs_f = f;
     ta = clk();
     trs += ta - t0;
     pstats.rs_sum += trs;
     pstats.frames += len;
     pstats.callbacks++;
-    /* the callback's own total is measured by the caller (pump_account) */
+    /* the callback's own total is measured by the caller (main.c) */
     if (blk - pstats.blocks >= 256u) {
         pstats.blocks = blk;
         pstats.rs_pct = pct(pstats.rs_sum);  pstats.rs_sum = 0;
@@ -168,7 +200,7 @@ void pump_pull(int16_t *left, int16_t *right, uint32_t len)
 
 uint32_t pump_scope(int16_t *out, uint32_t n)
 {
-    uint32_t w = ring_w, i, start, trig = 0;
+    uint32_t w = ring_w, i, start, trig = 0;   /* reads the first half only */
     if (w < 3 * AUDIO_BLOCK) return 0;
     if (n > 2 * AUDIO_BLOCK) n = 2 * AUDIO_BLOCK;
     start = w - 3 * AUDIO_BLOCK;

@@ -1,0 +1,97 @@
+  0.34 s  launch
+  6.34 s  volume up
+  8.43 s  screenshot: docked
+  8.53 s  undock
+ 11.12 s  crank +270 deg (cutoff up half the travel)
+ 14.22 s  screenshot: crank open
+ 15.41 s  crank -540 deg (fully closed, past the hard stop)
+ 18.88 s  crank +180 deg
+ 21.68 s  B + crank -180 deg (resonance down)
+ 23.30 s  release B
+ 25.41 s  dock: glide home over one beat
+ 27.52 s  screenshot: home
+ 28.67 s  B + DOWN: stop
+ 30.29 s  B + DOWN: play
+ 32.39 s  system menu open
+ 36.48 s  screenshot: menu
+ 36.59 s  system menu closed (B)
+ 39.67 s  end
+
+recorded 38.2 s
+ time   rms dBFS  centroid Hz
+  0.0   -240.0         0  <- launch
+  0.5   -240.0         0
+  1.0   -240.0         0
+  1.5   -240.0         0
+  2.0   -240.0         0
+  2.5   -240.0         0
+  3.0    -13.5      1568
+  3.5    -10.6      4001
+  4.0    -12.2      2321
+  4.5    -11.0      4000
+  5.0    -11.7      3003
+  5.5    -10.3      3923
+  6.0    -11.7      3543  <- volume up
+  6.5    -11.0      3883
+  7.0    -11.9      3602
+  7.5    -10.9      3599
+  8.0    -11.6      3563  <- screenshot: docked
+  8.5    -10.9      3627  <- undock
+  9.0    -11.0      3709
+  9.5    -11.6      3480
+ 10.0    -12.4      3853
+ 10.5    -11.4      3801
+ 11.0    -10.5      3898  <- crank +270 deg (cutoff up half the travel)
+ 11.5    -11.4      2845
+ 12.0    -11.4      3306
+ 12.5    -11.4      3310
+ 13.0     -9.6      3291
+ 13.5    -10.7      1796
+ 14.0    -11.2      3266  <- screenshot: crank open
+ 14.5    -10.8      2991
+ 15.0    -10.2      3361  <- crank -540 deg (fully closed, past the hard stop)
+ 15.5    -10.9      2011
+ 16.0    -11.3      3357
+ 16.5    -10.6      3870
+ 17.0    -10.9      3447
+ 17.5    -10.9      2738
+ 18.0    -11.3      3631
+ 18.5    -10.7      4764  <- crank +180 deg
+ 19.0     -9.8      4568
+ 19.5    -12.4      3067
+ 20.0    -11.3      4004
+ 20.5    -10.6      4851
+ 21.0     -9.9      4667
+ 21.5    -11.4      3663  <- B + crank -180 deg (resonance down)
+ 22.0    -11.5      4012
+ 22.5    -10.5      4658
+ 23.0    -10.0      4537  <- release B
+ 23.5    -12.0      3637
+ 24.0    -11.1      3770
+ 24.5     -9.5      4251
+ 25.0    -10.0      4057  <- dock: glide home over one beat
+ 25.5    -12.1      3472
+ 26.0    -11.9      3720
+ 26.5    -12.5      3576
+ 27.0    -33.1      3529
+ 27.5    -46.1      2659  <- screenshot: home
+ 28.0    -16.3       499
+ 28.5    -10.2      3480  <- B + DOWN: stop
+ 29.0    -12.0      2670
+ 29.5    -11.6      3603
+ 30.0    -12.0      3639  <- B + DOWN: play
+ 30.5    -10.1      3320
+ 31.0    -11.5      1543
+ 31.5    -11.5      3624
+ 32.0    -11.0      3270  <- system menu open
+ 32.5    -10.7      3215
+ 33.0    -11.3       802
+ 33.5    -11.1      3647
+ 34.0    -10.1      3638
+ 34.5    -10.6      3757
+ 35.0    -10.3      3223
+ 35.5    -10.6      3970
+ 36.0     -9.5      4639  <- screenshot: menu
+ 36.5    -10.7      3561  <- system menu closed (B)
+ 37.0    -10.4      3120
+ 37.5    -12.4      4061
