@@ -69,8 +69,8 @@ typedef struct {
 
 extern const screen_t scr_synth, scr_track, scr_live, scr_gen, scr_song, scr_file;
 
-void ui_init(void);
-void ui_frame(const ui_in_t *in);       /* input + draw; the update loop */
+void screen_init(void);
+void screen_frame(const ui_in_t *in);       /* input + draw; the update loop */
 void ui_goto(int screen);
 void ui_message(const char *fmt, ...);
 void ui_redraw(void);                    /* the body changed */

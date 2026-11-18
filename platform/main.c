@@ -11,8 +11,9 @@
  *   audio callback  pump_pull: commands, ETCH's clock and step rules, ACID,
  *                   FOUNDRY, FX, resampler.  Never allocates, draws, locks,
  *                   waits or touches the filesystem.
- *   update loop     buttons and crank, CORROSION's background work (evolve.c),
- *                   the screen (only what changed).
+ *   update loop     buttons and crank (ui.c), the Playdate-only layer (cpl.c),
+ *                   CORROSION's background work (evolve.c), the screen (only
+ *                   rows that changed reach the display).
  */
 #include <stdio.h>
 #include <string.h>
@@ -22,15 +23,19 @@
 #include "corrosion.h"
 #include "pump.h"
 #include "crank.h"
-#include "screen.h"
+#include "ui.h"
+#include "gfx1.h"
+#include "cpl.h"
+#include "proj.h"
+#include "plat.h"
+#include "layers.h"
 
 static PlaydateAPI *pd;
+void pdfile_init(PlaydateAPI *api);
 
 /* ---- the clock for the CPU meter ------------------------------------------
  * Device: the Cortex-M7's cycle counter (DWT CYCCNT), raw CPU cycles.
- * Simulator: the host's monotonic clock in nanoseconds.
- * render.arm.c's stage percentages assume 131 072 ticks per block (the DS
- * bus clock); screen.c rescales them by the measured tick rate. */
+ * Simulator: the host's monotonic clock in nanoseconds. */
 #if TARGET_PLAYDATE
 #define DEMCR      (*(volatile uint32_t *)0xE000EDFCu)
 #define DWT_CTRL   (*(volatile uint32_t *)0xE0001000u)
@@ -64,10 +69,24 @@ uint16_t hw_noise(void)
     return (uint16_t)(t ^ (t >> 16) ^ pd->system->getCurrentTimeMilliseconds());
 }
 
-/* ---- the audio callback ----------------------------------------------------- */
-static volatile uint32_t cb_paused;       /* callbacks while the system menu is up */
-static volatile uint8_t menu_open;
+/* the clock rate, measured against the millisecond clock every 2 s */
+static double tick_hz = 168e6, ui_ms;
+static uint32_t cal_t0, cal_ms0;
+static void calibrate(uint32_t ms)
+{
+    uint32_t t = host_clock ? host_clock() : 0;
+    if (!cal_ms0) { cal_ms0 = ms; cal_t0 = t; return; }
+    if (ms - cal_ms0 >= 2000) {
+        double hz = (double)(uint32_t)(t - cal_t0) * 1000.0 / (double)(ms - cal_ms0);
+        if (hz > 1e6) tick_hz = hz;
+        cal_ms0 = ms;
+        cal_t0 = t;
+    }
+}
+double plat_tick_hz(void) { return tick_hz; }
+double plat_ui_ms(void) { return ui_ms; }
 
+/* ---- the audio callback ----------------------------------------------------- */
 static int audio_cb(void *ctx, int16_t *left, int16_t *right, int len)
 {
     uint32_t t0 = host_clock ? host_clock() : 0, dt;
@@ -76,112 +95,117 @@ static int audio_cb(void *ctx, int16_t *left, int16_t *right, int len)
     dt = (host_clock ? host_clock() : 0) - t0;
     pstats.cb_sum += dt;
     if (dt > pstats.cb_max) pstats.cb_max = dt;
-    if (menu_open) cb_paused++;
     return 1;
 }
 
-/* ---- buttons ----------------------------------------------------------------
- * Held B takes SELECT's role (docs/CONTROLS.md).  Milestone 1 implements:
- *   crank            cutoff
- *   B + crank        resonance
- *   dock             cutoff and resonance glide home over one beat
- *   B + dock         keep the live values as the stored values
- *   B + DOWN         play / stop                        (ETCH: START)
- *   B tap            FILL on / off (latched)            (ETCH LIVE: B)
- *   B + UP           arm crank recording: milestone 2 (shows a message)
- * A B tap is a press and release of B with no other button and no crank
- * movement in between, so B + crank never toggles the fill. */
-static uint8_t b_combo;                   /* B is part of a chord this press */
-static uint8_t fill_on;
-
-static void start_stop(void)
+/* the mic level, for the mod matrix (only while a row uses it) */
+static int mic_cb(void *ctx, int16_t *buf, int len)
 {
-    if (!SH->playing) {
-        uint16_t e = (uint16_t)(ui_entropy ^ hw_noise());
-        evo_seed(e);                      /* the moment of the press seeds the living song */
-        app_send(CMD(CMD_START, e));
-    } else {
-        app_send(CMD(CMD_STOP, 0));
-    }
+    int i, pk = 0;
+    (void)ctx;
+    for (i = 0; i < len; i++) { int v = buf[i] < 0 ? -buf[i] : buf[i]; if (v > pk) pk = v; }
+    pk >>= 8;
+    cpl_mic_level = (uint8_t)(pk > 127 ? 127 : pk);
+    return 1;
 }
 
-static void input_frame(void)
-{
-    PDButtons cur, pushed, released;
-    float dc;
-    int32_t delta_q8;
-    uint8_t docked, b;
-
-    pd->system->getButtonState(&cur, &pushed, &released);
-    if (pushed) ui_entropy = (uint16_t)((ui_entropy * 31u) ^ hw_noise() ^ (uint16_t)pushed);
-    b = (cur & kButtonB) ? 1 : 0;
-
-    dc = pd->system->getCrankChange();
-    docked = (uint8_t)pd->system->isCrankDocked();
-    delta_q8 = (int32_t)(dc * 256.0f);
-    if (delta_q8) ui_entropy = (uint16_t)(ui_entropy ^ (uint16_t)delta_q8);
-
-    if (pushed & kButtonB) b_combo = 0;
-    if (b && (pushed & (kButtonUp | kButtonDown | kButtonLeft | kButtonRight | kButtonA))) b_combo = 1;
-    if (b && delta_q8) b_combo = 1;
-
-    if (b && (pushed & kButtonDown)) start_stop();
-    if (b && (pushed & kButtonUp)) screen_message("CRANK REC ARRIVES IN MILESTONE 2");
-    if (b && (pushed & (kButtonLeft | kButtonRight))) screen_message("LIVE IS THE ONLY SCREEN IN MILESTONE 1");
-    if ((released & kButtonB) && !b_combo) {
-        fill_on = (uint8_t)!fill_on;
-        app_fill_latch(fill_on);
-    }
-    if (b && docked && !crank_ui.docked) b_combo = 1;   /* B + dock: keep values */
-
-    crank_ui_frame(delta_q8, docked, b, pd->system->getCurrentTimeMilliseconds(), SH->proj.synth.bpm);
-}
-
-/* ---- update loop ---------------------------------------------------------- */
-static int update(void *ud)
+/* ---- the system menu: SPEAKER, TILT, CRANK BITE ------------------------------ */
+static PDMenuItem *mi_speaker, *mi_tilt, *mi_bite;
+static void menu_cb(void *ud)
 {
     (void)ud;
-    input_frame();
-    evo_frame();                          /* CORROSION: prepare the next mutation */
-    app_fill_frame();
-    screen_frame(fill_on);
-    return 1;
+    cpl_set.speaker = (uint8_t)pd->system->getMenuItemValue(mi_speaker);
+    cpl_set.tilt = (uint8_t)pd->system->getMenuItemValue(mi_tilt);
+    cpl_set.bite = (uint8_t)pd->system->getMenuItemValue(mi_bite);
+    cpl_settings_save();
 }
 
-/* ---- CPU TEST (milestone 1 only) --------------------------------------------
- * ETCH DS's CPU test: ACID retriggers with an accent on every 16th, all six
- * drum lanes fire on every 16th (CMD_STRESS), and every FX stage works.  A
- * temporary system-menu checkbox so the meter can be read on hardware; the
- * menu's three items belong to CODE, DEMOS and SPEAKER/TILT later. */
-static fx_params_t fx_saved;
-static void cpu_test_cb(void *ud)
+static int headphones = 1;
+static void hp_changed(int hp, int mic) { (void)mic; headphones = hp; }
+
+/* ---- present: the rows that changed, into the display frame ------------------- */
+static void present(void)
 {
-    PDMenuItem *item = (PDMenuItem *)ud;
-    int on = pd->system->getMenuItemValue(item);
-    if (on) {
-        fx_saved = fx_p;
-        fx_p.drive = 50; fx_p.crush_bits = 10; fx_p.crush_hold = 3;
-        fx_p.dly_mix = 60; fx_p.dly_fb = 80; fx_p.comb_mix = 40; fx_p.comb_fb = 90;
-    } else {
-        fx_p = fx_saved;
+    uint8_t *fr = pd->graphics->getFrame();
+    int y, first = -1, last = -1;
+    for (y = 0; y < GFX_H; y++) {
+        if (!gfx_dirty[y]) continue;
+        memcpy(fr + y * LCD_ROWSIZE, gfx_fb + y * GFX_STRIDE, GFX_W / 8);
+        gfx_dirty[y] = 0;
+        if (first < 0) first = y;
+        last = y;
     }
-    app_send(CMD(CMD_STRESS, on ? 1 : 0));
-    screen_message(on ? "CPU TEST: ACID + 6 LANES EVERY 16TH, ALL FX" : "CPU TEST OFF");
+    if (first >= 0) pd->graphics->markUpdatedRows(first, last);
+}
+
+/* ---- the update loop ---------------------------------------------------------- */
+static uint8_t mic_on, accel_on;
+static int update(void *ud)
+{
+    PDButtons cur, pushed, released;
+    ui_in_t in;
+    float ax = 0, ay = 0, az = 0;
+    uint32_t t0 = host_clock ? host_clock() : 0;
+    (void)ud;
+
+    pd->system->getButtonState(&cur, &pushed, &released);
+    in.held = (uint8_t)cur;
+    in.pushed = (uint8_t)pushed;
+    in.released = (uint8_t)released;
+    in.crank_q8 = (int32_t)(pd->system->getCrankChange() * 256.0f);
+    in.docked = (uint8_t)pd->system->isCrankDocked();
+    in.now_ms = pd->system->getCurrentTimeMilliseconds();
+    calibrate(in.now_ms);
+
+    if (cpl_tilt_wanted != accel_on) {
+        accel_on = cpl_tilt_wanted;
+        pd->system->setPeripheralsEnabled(accel_on ? kAccelerometer : kNone);
+    }
+    if (accel_on) pd->system->getAccelerometer(&ax, &ay, &az);
+    if (cpl_mic_wanted != mic_on) {
+        mic_on = cpl_mic_wanted;
+        pd->sound->setMicCallback(mic_on ? mic_cb : NULL, NULL, kMicInputAutodetect);
+        if (!mic_on) cpl_mic_level = 0;
+    }
+
+    screen_frame(&in);                          /* buttons, crank, the screen */
+    cpl_frame(in.now_ms, ax, headphones);   /* lanes, mods, TILT, SPEAKER */
+    layers_frame();                         /* the DS layers */
+    synth_frame();                          /* deferred drum re-synthesis */
+    evo_frame();                            /* CORROSION: the next mutation */
+    app_fill_frame();
+    present();
+    ui_ms = (double)(uint32_t)((host_clock ? host_clock() : 0) - t0) * 1000.0 / tick_hz;
+    return 1;
 }
 
 /* ---- boot -------------------------------------------------------------------- */
 static void boot(void)
 {
+    static const char *spk[3] = { "auto", "on", "off" };
     uint16_t e;
+    int hp = 1, mic = 0;
     pd->display->setRefreshRate(50);
     pd->system->setCrankSoundsDisabled(1);
+    pdfile_init(pd);
     clk_init();
     audio_engine_init();
     foundry_build();                      /* FOUNDRY renders its drum sounds */
     shared_init();
+    proj_init();
+    cpl_init();
+    cpl_settings_load();
+    layers_init();
     pump_init(SH);
     crank_ui_init(acid_p.cutoff, acid_p.res, (uint8_t)pd->system->isCrankDocked());
-    screen_init(pd);
+    screen_init();
+
+    mi_speaker = pd->system->addOptionsMenuItem("speaker", spk, 3, menu_cb, NULL);
+    pd->system->setMenuItemValue(mi_speaker, cpl_set.speaker);
+    mi_tilt = pd->system->addCheckmarkMenuItem("tilt", cpl_set.tilt, menu_cb, NULL);
+    mi_bite = pd->system->addCheckmarkMenuItem("crank bite", cpl_set.bite, menu_cb, NULL);
+    pd->sound->getHeadphoneState(&hp, &mic, hp_changed);
+    headphones = hp;
 
     /* launch it, hear music: CORRODE plays in DRIFT at once */
     e = hw_noise();
@@ -189,10 +213,6 @@ static void boot(void)
     evo_seed(e);
     app_send(CMD(CMD_START, e));
     pd->sound->addSource(audio_cb, NULL, 1);
-    {
-        PDMenuItem *it = pd->system->addCheckmarkMenuItem("cpu test", 0, cpu_test_cb, NULL);
-        pd->system->setMenuItemUserdata(it, it);
-    }
     pd->system->setUpdateCallback(update, NULL);
     pd->system->logToConsole("ETCH CRANK %s -- by Synth Centric -- for Playdate", ETCH_CRANK_VERSION);
 }
@@ -206,18 +226,10 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
     if (event == kEventInit) {
         pd = playdate;
         boot();
-    } else if (event == kEventPause) {
-        menu_open = 1;
-        cb_paused = 0;
-        screen_menu(1);
     } else if (event == kEventResume) {
-        menu_open = 0;
-        pd->system->logToConsole("ETCH CRANK: %u audio callbacks ran while the system menu was open",
-                                 (unsigned)cb_paused);
-        screen_menu(0);
+        cal_ms0 = 0;                      /* the game's clock stood still */
+    } else if (event == kEventTerminate) {
+        cpl_settings_save();
     }
     return 0;
 }
-
-/* screen.c reads these */
-uint32_t main_menu_callbacks(void) { return cb_paused; }

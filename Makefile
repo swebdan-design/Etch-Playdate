@@ -28,14 +28,25 @@ ENGINE_SRC = engine/acid.arm.c engine/foundry.arm.c engine/fx.arm.c engine/rende
              engine/dsp_tables.c engine/seq_core.c engine/demo.c engine/evolve.c \
              engine/edit.c engine/storage.c
 CORR_SRC   = corrosion/corrosion.c corrosion/pattern.c corrosion/names.c
-PLAT_SRC   = platform/main.c platform/screen.c platform/pump.c platform/crank.c \
-             platform/crank_audio.c platform/resample_tab.c platform/app_glue.c \
-             platform/syscalls.c
+PLAT_SRC   = platform/main.c platform/pump.c platform/crank.c platform/crank_audio.c \
+             platform/resample_tab.c platform/app_glue.c platform/syscalls.c \
+             platform/gfx1.c platform/font_ui.c platform/ui.c platform/scr_live.c \
+             platform/scr_track.c platform/scr_synth.c platform/scr_gen.c platform/scr_song.c \
+             platform/scr_file.c platform/cpl.c platform/pdfile.c platform/proj.c \
+             platform/demos.c platform/foundry_guard.c layers/layers.c
 
 SRC     = $(PLAT_SRC) $(ENGINE_SRC) $(CORR_SRC)
-UINCDIR = platform engine corrosion
+UINCDIR = platform engine corrosion layers
 UDEFS   = -DETCH_CPU_METER=1
-VPATH  += platform:engine:corrosion
+VPATH  += platform:engine:corrosion:layers
+
+# link-time wraps: the crank into ACID, SPEAKER before the limiter, CRANK BITE
+# into CORROSION's intensity argument, the drum re-synthesis guard, and stdio
+# onto the Playdate's file API for ETCH DS's storage code
+WRAPS = -Wl,--wrap=acid_render -Wl,--wrap=fx_limit -Wl,--wrap=corr_mutate \
+        -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build \
+        -Wl,--wrap=fopen -Wl,--wrap=fclose -Wl,--wrap=fread -Wl,--wrap=fwrite \
+        -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fflush
 
 .PHONY: check test arm-test tables
 all: check
@@ -43,8 +54,8 @@ all: check
 ifneq ($(SDK),)
 include $(SDK)/C_API/buildsupport/common.mk
 # the crank rides into ETCH DS's ACID through one link-time wrap
-LDFLAGS     += -Wl,--wrap=acid_render
-DYLIB_FLAGS += -O2 -Wl,--wrap=acid_render -DETCH_CPU_METER=1
+LDFLAGS     += $(WRAPS)
+DYLIB_FLAGS += -O2 $(WRAPS) -DETCH_CPU_METER=1
 else
 all:
 	@echo "Playdate SDK not found: set PLAYDATE_SDK_PATH (make test works without it)"

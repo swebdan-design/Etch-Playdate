@@ -368,7 +368,7 @@ static uint32_t watch(void)
 static int32_t arc_cut = -1, arc_res = -1;
 static uint8_t arc_stored = 0xFF, arc_lane = 0xFF;
 
-void ui_init(void)
+void screen_init(void)
 {
     gfx_clear(C_WHITE);
     cur = SCR_LIVE;
@@ -376,7 +376,7 @@ void ui_init(void)
     body_dirty = status_dirty = 1;
 }
 
-void ui_frame(const ui_in_t *in)
+void screen_frame(const ui_in_t *in)
 {
     uint32_t w;
     ui_now_ms = in->now_ms;

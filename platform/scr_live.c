@@ -126,11 +126,11 @@ static void mac_text(int m, char *b)
     static const char *const rg[3] = { "ALL", "BASS", "DRUM" };
     int v = mac_get(m);
     switch (m) {
-    case 0: snprintf(b, 8, "%02d", v + 1); break;
-    case 4: snprintf(b, 8, "%s", drv[v & 3]); break;
-    case 5: snprintf(b, 8, "%s", rg[v]); break;
-    case 6: snprintf(b, 8, "%.5s", corr_mode_names[v]); break;
-    default: snprintf(b, 8, "%d", v); break;
+    case 0: snprintf(b, 16, "%02d", v + 1); break;
+    case 4: snprintf(b, 16, "%s", drv[v & 3]); break;
+    case 5: snprintf(b, 16, "%s", rg[v]); break;
+    case 6: snprintf(b, 16, "%.5s", corr_mode_names[v]); break;
+    default: snprintf(b, 16, "%d", v); break;
     }
 }
 

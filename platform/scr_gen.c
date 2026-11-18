@@ -194,3 +194,12 @@ static const char *gen_hint(void)
 static void gen_enter(void) { if (!code_dirty) code_from_project(); }
 
 const screen_t scr_gen = { "GEN", gen_event, gen_draw, gen_can_ride, gen_hint, gen_enter };
+
+/* FILE -> CODE: start a project from a seed code */
+void gen_focus_code(void)
+{
+    area = A_CODE;
+    digit = 0;
+    code_from_project();
+    ui_message("ENTER A CODE, THEN A LOADS IT");
+}
