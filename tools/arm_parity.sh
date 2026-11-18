@@ -19,15 +19,17 @@ CC=${ARM_CC:-arm-none-eabi-gcc}
 FLAGS="-mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -D__FPU_USED=1 -O2 -falign-functions=16 \
 -fomit-frame-pointer -mword-relocations -fno-common -ffunction-sections -fdata-sections \
 -DTARGET_PLAYDATE=1 -DTARGET_EXTENSION=1"
-INC="-I$ROOT/engine -I$ROOT/corrosion -I$ROOT/platform"
+INC="-I$ROOT/engine -I$ROOT/corrosion -I$ROOT/platform -I$ROOT/layers"
 E=$ROOT/engine
 SRC="$E/acid.arm.c $E/foundry.arm.c $E/fx.arm.c $E/render.arm.c $E/dsp_tables.c $E/seq_core.c \
 $E/demo.c $E/evolve.c $E/edit.c $E/storage.c $ROOT/corrosion/corrosion.c $ROOT/corrosion/pattern.c \
 $ROOT/corrosion/names.c $ROOT/platform/pump.c $ROOT/platform/crank.c $ROOT/platform/crank_audio.c \
-$ROOT/platform/resample_tab.c $ROOT/platform/app_glue.c"
+$ROOT/platform/resample_tab.c $ROOT/platform/app_glue.c $ROOT/platform/foundry_guard.c \
+$ROOT/layers/layers.c $ROOT/layers/rust.c $ROOT/layers/answer.c"
 echo "== $($CC --version | head -1)"
 echo "   flags: $FLAGS"
-$CC $FLAGS $INC -w -DCONSIST_PORT -nostartfiles -specs=nosys.specs -Wl,--wrap=acid_render \
+$CC $FLAGS $INC -w -DCONSIST_PORT -nostartfiles -specs=nosys.specs -Wl,--wrap=acid_render -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build \
+    -Wl,--wrap=acid_step -Wl,--wrap=foundry_render \
     -o "$OUT/consist_port_m7" "$ROOT/tests/consistency.c" $SRC "$ROOT/tests/arm/linux_shim.c" -lm 2>&1 \
     | grep -v "is not implemented and will always fail" || true
 echo "== host: ETCH DS reference, and the Playdate path"

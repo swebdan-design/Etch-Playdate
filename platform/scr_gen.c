@@ -20,6 +20,7 @@
 #include "app_glue.h"
 #include "corrosion.h"
 #include "cpl.h"
+#include "layers.h"
 
 static const char *const key_names[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 #define GG(f) static int g_##f(void) { return SH->proj.gen.f; } static void s_##f(int v) { SH->proj.gen.f = (uint8_t)v; }
@@ -58,7 +59,16 @@ enum { A_LIST, A_CODE, A_ACT };
 static uint8_t area = A_LIST, digit, act;
 static char code[17];                       /* 16 digits being edited */
 static uint8_t code_dirty;
-static const char *const act_names[8] = { "GEN ALL", "GEN BASS", "GEN DRUMS", "GROOVE", "EVOLVE", "UNDO", "LOCK BASS", "LOCK PATT" };
+#define N_ACT 10
+static const char *const act_names[N_ACT] = { "GEN ALL", "GEN BASS", "GEN DRUMS", "GROOVE", "EVOLVE", "UNDO",
+                                              "LOCK BASS", "LOCK PATT", "ANSWER", "NO LAYERS" };
+
+/* the layers follow the code's 4th group */
+static void layers_sync(void)
+{
+    layers_has_ext = cplp.has_ext;
+    layers_ext_seed = cpl_ext_seed();
+}
 
 static void code_from_project(void)
 {
@@ -76,8 +86,10 @@ static void code_load(void)
     g.mode = SH->proj.gen.mode;
     SH->proj.gen = g;
     if (code[12] != '-') { memcpy(cplp.ext, code + 12, 4); cplp.has_ext = 1; }
-    else cplp.has_ext = 0;
+    else { cplp.has_ext = 0; LD->manual = 0; }
     app_generate(GEN_ALL);
+    layers_sync();
+    if (cplp.has_ext) layers_answer_all();          /* the playing pattern is re-answered once GEN ALL lands */
     code_dirty = 0;
     ui_message("CODE LOADED: GEN ALL");
 }
@@ -102,6 +114,24 @@ static void act_do(int i)
         p.lock ^= i == 6 ? PLOCK_BASS : PLOCK_ALL;
         app_replace(&p, 0);
         ui_message("%s %s", i == 6 ? "BASS" : "PATTERN", (p.lock & (i == 6 ? PLOCK_BASS : PLOCK_ALL)) ? "LOCKED" : "UNLOCKED");
+        break;
+    case 8: {                                       /* ANSWER: a new expansion seed */
+        uint16_t x = (uint16_t)(evo_random() ^ hw_noise());
+        int k;
+        for (k = 0; k < 4; k++) cplp.ext[k] = "0123456789ABCDEF"[(x >> (12 - 4 * k)) & 15];
+        cplp.has_ext = 1;
+        layers_sync();
+        layers_answer_all();
+        code_dirty = 0;
+        ui_message("ANSWER %.4s: RUST, METAL, NOISE", cplp.ext);
+        break;
+    }
+    case 9:
+        cplp.has_ext = 0;
+        LD->manual = 0;
+        layers_sync();
+        code_dirty = 0;
+        ui_message("NO LAYERS: THE SONG IS ETCH DS'S AGAIN");
         break;
     }
 }
@@ -142,7 +172,7 @@ static void gen_event(const ui_ev_t *e)
         return;
     }
     if (e->nav_y < 0) { if (act >= 2) act = (uint8_t)(act - 2); else area = A_CODE; return; }
-    if (e->nav_y > 0 && act < 6) act = (uint8_t)(act + 2);
+    if (e->nav_y > 0 && act < N_ACT - 2) act = (uint8_t)(act + 2);
     if (e->nav_x) act = (uint8_t)((act ^ 1));
     if (e->a_tap) act_do(act);
 }
@@ -171,16 +201,16 @@ static void gen_draw(void)
     if (area == A_CODE) gfx_frame(246, 76, 150, 15, C_BLACK);
     gfx_text(248, 94, F_SMALL, 1, C_BLACK, "SEED  KEY SCL STY DEN SYN ACC SLD OCT  EXP");
     /* the actions */
-    for (i = 0; i < 8; i++) {
-        int ax = 248 + (i & 1) * 74, ay = 106 + (i >> 1) * 22, sel = area == A_ACT && act == i;
-        int lit = (i == 6 && (SH->proj.pat[SH->cur].lock & PLOCK_BASS)) || (i == 7 && (SH->proj.pat[SH->cur].lock & PLOCK_ALL));
+    for (i = 0; i < N_ACT; i++) {
+        int ax = 248 + (i & 1) * 74, ay = 104 + (i >> 1) * 21, sel = area == A_ACT && act == i;
+        int lit = (i == 6 && (SH->proj.pat[SH->cur].lock & PLOCK_BASS)) || (i == 7 && (SH->proj.pat[SH->cur].lock & PLOCK_ALL)) ||
+                  (i == 8 && layers_active());
         gfx_fill(ax, ay, 70, 18, lit ? C_BLACK : C_WHITE);
         gfx_frame(ax, ay, 70, 18, C_BLACK);
         gfx_text_c(ax + 35, ay + 6, F_MAIN, 1, lit ? C_WHITE : C_BLACK, act_names[i]);
         if (sel) gfx_frame(ax - 2, ay - 2, 74, 22, C_BLACK);
     }
-    gfx_textf(248, 196, F_MAIN, 1, C_BLACK, "CORROSION FROM ETCH %s", ETCH_VERSION_STR);
-    gfx_textf(248, 207, F_SMALL, 1, C_BLACK, "PATTERN %02u  GENERATION %u", SH->cur + 1, SH->proj.pat[SH->cur].gen);
+    gfx_textf(248, 214, F_SMALL, 1, C_BLACK, "CORROSION FROM ETCH %s", ETCH_VERSION_STR);
 }
 
 static const char *gen_hint(void)

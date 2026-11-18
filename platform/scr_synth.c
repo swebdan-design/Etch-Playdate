@@ -29,9 +29,12 @@
 #include "cpl.h"
 #include "pump.h"
 #include "plat.h"
+#include "layers.h"
 
-enum { T_BASS, T_KICK, T_SNARE, T_HAT, T_OPEN, T_FX, T_MOD, T_CPU, T_COUNT };
-static const char *const tab_names[T_COUNT] = { "BASS", "KICK", "SNARE", "HAT", "OPEN", "FX", "MOD", "CPU" };
+enum { T_BASS, T_RUST, T_KICK, T_SNARE, T_HAT, T_OPEN, T_METAL, T_NOISE, T_FX, T_MOD, T_EVO, T_CPU, T_COUNT };
+static const char *const tab_names[T_COUNT] = { "BAS", "RST", "KCK", "SNR", "HAT", "OPN", "MTL", "NSE", "FX", "MOD", "EVO", "CPU" };
+#define IS_DRUM(t) ((t) >= T_KICK && (t) <= T_NOISE)
+static const uint8_t lane_mute_bit[6] = { 1, 2, 3, 4, 5, 6 };
 static uint8_t tab = T_BASS, on_tabs;
 static uint8_t lane;                     /* drum pages: 0..3 */
 
@@ -86,7 +89,7 @@ static void dr_tables(void)
     uint32_t i, hz = 20u << 16;                        /* 20 Hz .. ~12.4 kHz, exponential (ETCH DS) */
     for (i = 0; i < 128; i++) { hz_tab[i] = (uint16_t)(hz >> 16); hz = (uint32_t)(((uint64_t)hz * 68916u) >> 16); }
 }
-static uint8_t dr_kit(void) { return (uint8_t)(SH->proj.pat[SH->cur].kit[lane] & 3); }
+static uint8_t dr_kit(void) { return lane < NUM_LANES ? (uint8_t)(SH->proj.pat[SH->cur].kit[lane] & 3) : 0; }
 static drum_def_t *dr_def(void) { return &foundry_defs[lane][dr_kit()]; }
 static int isqrt_i(int v) { int r = 0; while ((r + 1) * (r + 1) <= v) r++; return r; }
 static int dr_hz_v(int hz) { int i; for (i = 0; i < 127 && hz_tab[i + 1] <= hz; i++) { } return i; }
@@ -113,9 +116,9 @@ static void dr_set(int k, int v)
     drum_def_t *d = dr_def();
     if (v == dr_get(k)) return;
     switch (k) {
-    case D_KIT: app_set_kit(lane, (uint8_t)v); return;
-    case D_TUNE: foundry_tune[lane] = (uint8_t)v; SH->proj.drum_tune[lane] = (uint8_t)v; return;
-    case D_LEVEL: foundry_level[lane] = (uint8_t)v; SH->proj.drum_level[lane] = (uint8_t)v; return;
+    case D_KIT: if (lane < NUM_LANES) app_set_kit(lane, (uint8_t)v); return;
+    case D_TUNE: foundry_tune[lane] = (uint8_t)v; if (lane < NUM_LANES) SH->proj.drum_tune[lane] = (uint8_t)v; return;
+    case D_LEVEL: foundry_level[lane] = (uint8_t)v; if (lane < NUM_LANES) SH->proj.drum_level[lane] = (uint8_t)v; return;
     case D_MODEL: d->type = (uint8_t)v; break;
     case D_PITCH: d->f0 = hz_tab[v]; break;
     case D_END: d->f1 = hz_tab[v]; break;
@@ -129,24 +132,33 @@ static void dr_set(int k, int v)
 
 #define DG(k) static int gd_##k(void) { return dr_get(k); } static void sd_##k(int v) { dr_set(k, v); }
 DG(D_KIT) DG(D_MODEL) DG(D_PITCH) DG(D_END) DG(D_SWEEP) DG(D_DECAY) DG(D_NOISE) DG(D_DRIVE) DG(D_TUNE) DG(D_LEVEL)
-static void fd_kit(int v, char *o) { strcpy(o, foundry_kit_names[lane][v & 3]); }
+static void fd_kit(int v, char *o) { if (lane < NUM_LANES) strcpy(o, foundry_kit_names[lane][v & 3]); else strcpy(o, lane == 4 ? "METAL" : "NOISE"); }
 static void fd_model(int v, char *o) { strcpy(o, foundry_model_names[v % DT_COUNT]); }
 static void fd_pitch(int v, char *o) { sprintf(o, "%d HZ", hz_tab[v & 127]); }
 static void fd_sweep(int v, char *o) { sprintf(o, "%d MS", 1 + v * v / 80); }
 static void fd_decay(int v, char *o) { sprintf(o, "%d MS", 10 + v * v / 8); }
 static void fd_tune(int v, char *o) { sprintf(o, "%+d", v - 8); }
-static int g_mute(void) { return (SH->proj.mutes >> (lane + 1)) & 1; }
-static void s_mute(int v) { if (v != g_mute()) app_toggle_mute((uint8_t)(lane + 1)); }
-static int g_lock(void) { return (SH->proj.pat[SH->cur].lock >> (lane + 1)) & 1; }
+static int g_mute(void) { return (SH->proj.mutes >> lane_mute_bit[lane]) & 1; }
+static void s_mute(int v) { if (v != g_mute()) app_toggle_mute(lane_mute_bit[lane]); }
+static int g_lock(void)
+{
+    if (lane >= NUM_LANES) return LD->pat[SH->cur & 31].lock;
+    return (SH->proj.pat[SH->cur].lock >> (lane + 1)) & 1;
+}
 static void s_lock(int v)
 {
     pattern_t p;
+    if (lane >= NUM_LANES) { LD->pat[SH->cur & 31].lock = (uint8_t)v; return; }
     memcpy(&p, &SH->proj.pat[SH->cur], sizeof p);
     p.lock = (uint8_t)((p.lock & ~(PLOCK_LANE0 << lane)) | (v ? (PLOCK_LANE0 << lane) : 0));
     app_replace(&p, 0);
 }
 static void f_onoff(int v, char *o) { strcpy(o, v ? "ON" : "OFF"); }
-static void a_drum(void) { app_audition(lane, dr_kit()); }
+static void a_drum(void)
+{
+    if (lane < NUM_LANES) app_audition(lane, dr_kit());
+    else live_note(EV_DRUMS, (uint8_t)(1u << lane), 0);
+}
 static const row_t drum_rows[] = {
     { "KIT", gd_D_KIT, sd_D_KIT, 0, 3, 1, 0, fd_kit, a_drum },
     { "MODEL", gd_D_MODEL, sd_D_MODEL, 0, DT_COUNT - 1, 1, 0, fd_model, a_drum },
@@ -160,6 +172,56 @@ static const row_t drum_rows[] = {
     { "LEVEL", gd_D_LEVEL, sd_D_LEVEL, 0, 15, 4, 15, NULL, a_drum },
     { "MUTE", g_mute, s_mute, 0, 1, 1, 0, f_onoff, NULL },
     { "LOCK", g_lock, s_lock, 0, 1, 1, 0, f_onoff, NULL },
+};
+
+/* ---- RUST (an ETCH DS layer) --------------------------------------------------------- */
+#define GR(f) static int gr_##f(void) { return LD->rust.f; } static void sr_##f(int v) { LD->rust.f = (uint8_t)v; }
+GR(wave_a) GR(wave_b) GR(interval) GR(detune) GR(sync) GR(ring) GR(cutoff) GR(res) GR(envmod) GR(decay) GR(mode) GR(gate) GR(level)
+static void f_rmode(int v, char *o) { strcpy(o, v ? "PARA 3" : "MONO"); }
+static void f_semis(int v, char *o) { sprintf(o, "+%d", v); }
+#define GL(f) static int gl_##f(void) { return LD->pat[SH->cur & 31].f; } \
+              static void sl_##f(int v) { LD->pat[SH->cur & 31].f = (uint8_t)v; LD->pat[SH->cur & 31].lock = 1; LD->manual = 1; }
+GL(rust_len) GL(metal_len) GL(noise_len)
+static int g_llock(void) { return LD->pat[SH->cur & 31].lock; }
+static void s_llock(int v) { LD->pat[SH->cur & 31].lock = (uint8_t)v; }
+static void a_rust(void) { uint8_t n[3] = { 36, 39, 43 }; rust_note(n, LD->rust.mode ? 3 : 1, 1, 0); rust_gate_off(); }
+static const row_t rust_rows[] = {
+    { "OSC A", gr_wave_a, sr_wave_a, 0, 3, 1, RW_SAW, f_wave, a_rust },
+    { "OSC B", gr_wave_b, sr_wave_b, 0, 3, 1, RW_SQUARE, f_wave, a_rust },
+    { "INTERVAL", gr_interval, sr_interval, 0, 24, 12, 7, f_semis, a_rust },
+    { "DETUNE", gr_detune, sr_detune, 0, 127, 8, 20, NULL, a_rust },
+    { "SYNC", gr_sync, sr_sync, 0, 1, 1, 0, f_onoff, a_rust },
+    { "RING", gr_ring, sr_ring, 0, 127, 8, 0, NULL, a_rust },
+    { "CUTOFF", gr_cutoff, sr_cutoff, 0, 127, 8, 52, NULL, a_rust },
+    { "RESO", gr_res, sr_res, 0, 127, 8, 70, NULL, a_rust },
+    { "ENV MOD", gr_envmod, sr_envmod, 0, 127, 8, 60, NULL, a_rust },
+    { "DECAY", gr_decay, sr_decay, 0, 127, 8, 50, NULL, a_rust },
+    { "MODE", gr_mode, sr_mode, 0, 1, 1, RM_MONO, f_rmode, a_rust },
+    { "GATE", gr_gate, sr_gate, 1, 15, 4, 9, NULL, a_rust },
+    { "LEVEL", gr_level, sr_level, 0, 127, 8, 70, NULL, a_rust },
+    { "RUST LENGTH", gl_rust_len, sl_rust_len, 1, 16, 4, 16, NULL, NULL },
+    { "METAL LENGTH", gl_metal_len, sl_metal_len, 1, 16, 4, 16, NULL, NULL },
+    { "NOISE LENGTH", gl_noise_len, sl_noise_len, 1, 16, 4, 16, NULL, NULL },
+    { "LAYER LOCK", g_llock, s_llock, 0, 1, 1, 0, f_onoff, NULL },
+};
+
+/* ---- EVO: sound evolution and its knob locks (an ETCH DS layer) ---------------------- */
+static int g_evo(void) { return LD->evo_on; }
+static void s_evo(int v) { LD->evo_on = (uint8_t)v; if (v) layers_evo_anchor(); }
+#define GK(k) static int gk##k(void) { return (LD->evo_lock >> k) & 1; } \
+              static void sk##k(int v) { LD->evo_lock = (uint8_t)((LD->evo_lock & ~(1u << k)) | (v ? 1u << k : 0)); }
+GK(0) GK(1) GK(2) GK(3) GK(4) GK(5) GK(6) GK(7)
+static void f_lock(int v, char *o) { strcpy(o, v ? "LOCKED" : "FREE"); }
+static const row_t evo_rows[] = {
+    { "SOUND EVO", g_evo, s_evo, 0, 1, 1, 0, f_onoff, NULL },
+    { "ENV MOD", gk0, sk0, 0, 1, 1, 0, f_lock, NULL },
+    { "DECAY", gk1, sk1, 0, 1, 1, 0, f_lock, NULL },
+    { "ACCENT", gk2, sk2, 0, 1, 1, 0, f_lock, NULL },
+    { "DRV AMT", gk3, sk3, 0, 1, 1, 0, f_lock, NULL },
+    { "RUST RES", gk4, sk4, 0, 1, 1, 0, f_lock, NULL },
+    { "RUST CUT", gk5, sk5, 0, 1, 1, 0, f_lock, NULL },
+    { "DLY MIX", gk6, sk6, 0, 1, 1, 0, f_lock, NULL },
+    { "COMB MIX", gk7, sk7, 0, 1, 1, 0, f_lock, NULL },
 };
 
 /* ---- FX ------------------------------------------------------------------------------ */
@@ -224,14 +286,14 @@ static const row_t cpu_rows[] = {
     { "CPU TEST", g_stress, s_stress, 0, 1, 1, 0, f_onoff, NULL },
 };
 
+#define DRUMLIST { drum_rows, sizeof drum_rows / sizeof drum_rows[0], 0, 0, 0 }
 static list_t lists[T_COUNT] = {
     { bass_rows, sizeof bass_rows / sizeof bass_rows[0], 0, 0, 0 },
-    { drum_rows, sizeof drum_rows / sizeof drum_rows[0], 0, 0, 0 },
-    { drum_rows, sizeof drum_rows / sizeof drum_rows[0], 0, 0, 0 },
-    { drum_rows, sizeof drum_rows / sizeof drum_rows[0], 0, 0, 0 },
-    { drum_rows, sizeof drum_rows / sizeof drum_rows[0], 0, 0, 0 },
+    { rust_rows, sizeof rust_rows / sizeof rust_rows[0], 0, 0, 0 },
+    DRUMLIST, DRUMLIST, DRUMLIST, DRUMLIST, DRUMLIST, DRUMLIST,
     { fx_rows, sizeof fx_rows / sizeof fx_rows[0], 0, 0, 0 },
     { mod_rows, sizeof mod_rows / sizeof mod_rows[0], 0, 0, 0 },
+    { evo_rows, sizeof evo_rows / sizeof evo_rows[0], 0, 0, 0 },
     { cpu_rows, 1, 0, 0, 0 },
 };
 
@@ -242,10 +304,10 @@ static void synth_event(const ui_ev_t *e)
     if (on_tabs) {
         if (e->nav_x || e->adj_x) {
             tab = (uint8_t)((tab + e->nav_x + e->adj_x + T_COUNT) % T_COUNT);
-            lane = (uint8_t)(tab >= T_KICK && tab <= T_OPEN ? tab - T_KICK : lane);
+            lane = (uint8_t)(IS_DRUM(tab) ? tab - T_KICK : lane);
         }
         if (e->nav_y > 0) on_tabs = 0;
-        if (e->a_tap) { if (tab == T_BASS) a_hear(); else if (tab <= T_OPEN) a_drum(); }
+        if (e->a_tap) { if (tab == T_BASS) a_hear(); else if (tab == T_RUST) a_rust(); else if (IS_DRUM(tab)) a_drum(); }
         return;
     }
     if (e->nav_y < 0 && l->sel == 0) { on_tabs = 1; return; }
@@ -284,10 +346,10 @@ static void synth_draw(void)
 {
     int i;
     for (i = 0; i < T_COUNT; i++) {
-        int x = 4 + i * 49, sel = i == tab;
-        if (sel && on_tabs) gfx_fill(x - 1, 66, 47, 11, C_BLACK);
-        gfx_text_c(x + 22, 68, F_MAIN, 1, sel && on_tabs ? C_WHITE : C_BLACK, tab_names[i]);
-        if (sel) gfx_fill(x, 77, 45, 2, C_BLACK);
+        int x = 2 + i * 33, sel = i == tab;
+        if (sel && on_tabs) gfx_fill(x - 1, 66, 32, 11, C_BLACK);
+        gfx_text_c(x + 15, 68, F_MAIN, 1, sel && on_tabs ? C_WHITE : C_BLACK, tab_names[i]);
+        if (sel) gfx_fill(x, 77, 30, 2, C_BLACK);
     }
     gfx_hline(0, 80, GFX_W, C_D50);
     if (tab == T_CPU) {
@@ -311,6 +373,7 @@ void synth_frame(void)
 {
     if (dr_pending && ui_now_ms - dr_last_ms >= 200) {
         foundry_guard_rebuild(lane, dr_kit());
+        if (lane >= NUM_LANES) LD->drums45[lane - NUM_LANES] = foundry_defs[lane][0];   /* saved in the sidecar */
         dr_pending = 0;
         dr_last_ms = ui_now_ms;
     }

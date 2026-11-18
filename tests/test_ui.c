@@ -197,6 +197,8 @@ int main(void)
     }
     /* drums: KICK tab, PITCH, re-synthesis while playing */
     for (i = 0; i < 5; i++) press(BTN_UP);  /* up past WAVE: the tab row */
+    press(BTN_RIGHT);                        /* RUST */
+    snap("synth_rust");
     press(BTN_RIGHT);                        /* KICK */
     snap("synth_kick");
     press(BTN_DOWN); press(BTN_DOWN); press(BTN_DOWN);   /* PITCH */
@@ -207,10 +209,12 @@ int main(void)
         CHECK(foundry_defs[0][SH->proj.pat[SH->cur].kit[0] & 3].f0 != f0, "KICK PITCH edits the design");
     }
     for (i = 0; i < 5; i++) press(BTN_UP);
-    for (i = 0; i < 4; i++) press(BTN_RIGHT);     /* FX */
+    for (i = 0; i < 6; i++) press(BTN_RIGHT);     /* SNR HAT OPN MTL NSE FX */
     snap("synth_fx");
     press(BTN_RIGHT);                             /* MOD */
     snap("synth_mod");
+    press(BTN_RIGHT);                             /* EVO */
+    snap("synth_evo");
     press(BTN_RIGHT);                             /* CPU */
     snap("synth_cpu");
 
@@ -289,8 +293,8 @@ int main(void)
 
     /* a scene: store, then morph by A + crank */
     chord(BTN_B, BTN_LEFT); chord(BTN_B, BTN_RIGHT);    /* re-enter LIVE */
-    for (i = 0; i < 6; i++) press(BTN_UP);                /* BASS (LIVE keeps its place) */
-    for (i = 0; i < 5; i++) press(BTN_DOWN);              /* pads */
+    for (i = 0; i < 9; i++) press(BTN_UP);                /* BASS (LIVE keeps its place) */
+    for (i = 0; i < 8; i++) press(BTN_DOWN);              /* pads (below RUST, METAL, NOISE) */
     for (i = 0; i < 4; i++) press(BTN_RIGHT);             /* S1 */
     press(BTN_A);
     CHECK(cplp.scene[0].used, "A on an empty scene stores it");

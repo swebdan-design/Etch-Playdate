@@ -47,7 +47,7 @@ endif
 
 .PHONY: all FORCE
 all: $(OUT)/test_generator $(OUT)/test_seq $(OUT)/test_dsp $(OUT)/consist_ds $(OUT)/consist_port \
-     $(OUT)/compare $(OUT)/test_crank $(OUT)/test_resample $(OUT)/test_ui
+     $(OUT)/compare $(OUT)/test_crank $(OUT)/test_resample $(OUT)/test_ui $(OUT)/test_layers
 	@echo "== ETCH's CORROSION tests (unmodified) against corrosion/ =="
 	@$(OUT)/test_generator | tail -1
 	@echo "== ETCH DS's sequencer tests (unmodified) against engine/ =="
@@ -68,6 +68,8 @@ all: $(OUT)/test_generator $(OUT)/test_seq $(OUT)/test_dsp $(OUT)/consist_ds $(O
 	@$(OUT)/test_resample
 	@echo "== the interface (scripted buttons and crank) =="
 	@cd $(OUT) && ./test_ui
+	@echo "== the ETCH DS layers and the Playdate-only layer =="
+	@cd $(OUT) && ./test_layers
 
 $(OUT)/test_generator: $(ROOT)/corrosion/tests/test_generator.c $(CORR)
 	@mkdir -p $(OUT)
@@ -104,5 +106,9 @@ $(OUT)/test_resample: test_resample.c $(ENGINE) $(APP) $(CORR) $(PORT)
 FORCE:
 
 $(OUT)/test_ui: test_ui.c $(ENGINE) $(APP) $(CORR) $(PORT) $(UI)
+	@mkdir -p $(OUT)
+	$(HOSTCC) $(CFLAGS) -o $@ $^ -lm $(UIWRAP)
+
+$(OUT)/test_layers: test_layers.c $(ENGINE) $(APP) $(CORR) $(PORT) $(UI)
 	@mkdir -p $(OUT)
 	$(HOSTCC) $(CFLAGS) -o $@ $^ -lm $(UIWRAP)

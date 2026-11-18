@@ -43,7 +43,8 @@ SRC = [os.path.join(E, f) for f in ("acid.arm.c", "foundry.arm.c", "fx.arm.c", "
                                      "seq_core.c", "demo.c", "evolve.c", "edit.c", "storage.c")]
 SRC += [os.path.join(ROOT, "corrosion", f) for f in ("corrosion.c", "pattern.c", "names.c")]
 SRC += [os.path.join(ROOT, "platform", f) for f in ("pump.c", "crank.c", "crank_audio.c", "resample_tab.c",
-                                                     "app_glue.c")]
+                                                     "app_glue.c", "foundry_guard.c")]
+SRC += [os.path.join(ROOT, "layers", f) for f in ("layers.c", "rust.c", "answer.c")]
 
 FN_STAGE = {
     "acid_render": "ACID", "__wrap_acid_render": "ACID", "acid_note": "ACID", "acid_glide": "ACID",
@@ -63,7 +64,7 @@ ORDER = ["ACID", "DRUMS", "DRIVE", "CRUSH", "DELAY", "COMB", "LIMIT", "EVENTS", 
 def build():
     """each source to a named object (so the link map names the file), then link"""
     os.makedirs(os.path.join(OUT, "obj"), exist_ok=True)
-    inc = ["-I" + os.path.join(ROOT, d) for d in ("engine", "corrosion", "platform")]
+    inc = ["-I" + os.path.join(ROOT, d) for d in ("engine", "corrosion", "platform", "layers")]
     objs = []
     for src in SRC + [os.path.join(ROOT, "tests", "cost.c"), os.path.join(ROOT, "tests", "arm", "linux_shim.c")]:
         o = os.path.join(OUT, "obj", os.path.basename(src).replace(".c", ".o"))
@@ -71,6 +72,8 @@ def build():
         objs.append(o)
     exe = os.path.join(OUT, "cost")
     subprocess.run([CC] + FLAGS + ["-nostartfiles", "-specs=nosys.specs", "-Wl,--wrap=acid_render",
+                    "-Wl,--wrap=foundry_trigger", "-Wl,--wrap=foundry_build", "-Wl,--wrap=acid_step",
+                    "-Wl,--wrap=foundry_render",
                     "-Wl,-Map=" + os.path.join(OUT, "cost.map"), "-o", exe] + objs + ["-lm"],
                    check=True, stderr=subprocess.DEVNULL)
     return exe

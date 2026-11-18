@@ -70,6 +70,7 @@ typedef struct {
     uint8_t  evo_lock;                    /* bit per knob: locked              */
     uint8_t  evo_anchor[8];
     uint8_t  enabled;                     /* the layers play                   */
+    uint8_t  manual;                      /* written by hand: they play anyway */
 } layers_data_t;
 
 /* the knobs sound evolution may move */

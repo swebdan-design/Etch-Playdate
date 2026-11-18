@@ -421,7 +421,10 @@ uint8_t __real_corr_mutate(pattern_t *dst, const pattern_t *src, const pattern_t
 uint8_t __wrap_corr_mutate(pattern_t *dst, const pattern_t *src, const pattern_t *anchor,
                            const gen_t *g, uint8_t mode, uint8_t intensity, uint16_t seed)
 {
-    if (cpl_bite_active()) intensity = (uint8_t)(((crank_ui.cut_q8 >> 8) + 4) >> 3);   /* 0..15 */
+    if (cpl_bite_active()) {                        /* how open the filter is: 0..15 */
+        int v = ((crank_ui.cut_q8 >> 8) + 4) >> 3;
+        intensity = (uint8_t)(v > 15 ? 15 : v);
+    }
     return __real_corr_mutate(dst, src, anchor, g, mode, intensity, seed);
 }
 

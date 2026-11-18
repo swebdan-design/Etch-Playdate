@@ -149,10 +149,12 @@ void __wrap_acid_step(void)
 
 /* FOUNDRY just triggered these lanes (the trigger guard tells us): the ones
  * that fired on this step and have a ratchet get their repeats scheduled */
+void (*layers_trigger_spy)(uint8_t lanes);  /* tests count hits here */
 void layers_on_trigger(uint8_t lanes)
 {
     uint8_t l, r, st;
     const layer_pat_t *L;
+    if (layers_trigger_spy) layers_trigger_spy(lanes);
     if (ratcheting || !LD || !LD->enabled || !SH) return;
     L = &LD->pat[SH->cur & 31];
     st = step_ticks();
@@ -240,10 +242,10 @@ void layers_frame(void)
     uint8_t c;
     if (!LD) return;
     /* the layers play when the code has its 4th group */
-    if (layers_has_ext && !was_ext) { LD->enabled = 1; layers_answer_all(); }
-    if (!layers_has_ext) LD->enabled = 0;
+    if (layers_has_ext && !was_ext) layers_answer_all();
+    LD->enabled = (uint8_t)(layers_has_ext || LD->manual);
     was_ext = layers_has_ext;
-    if (LD->enabled) {
+    if (layers_has_ext) {
         uint8_t nxt = app_next_bar_pattern();
         if (layers_stale(SH->cur)) layers_generate(SH->cur);       /* re-answer after evolution */
         if (nxt != SH->cur && layers_stale(nxt)) layers_generate(nxt);
