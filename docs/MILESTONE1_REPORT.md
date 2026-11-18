@@ -99,7 +99,12 @@ The meter also logs a line to the console every few seconds, readable over USB s
 
 * Launch: audio about 5 s after starting the Simulator (its own start-up included), with no input; CORRODE playing in DRIFT.
 * Crank, B + crank, dock and B + DOWN all behave as listed in §1.
-* **System menu:** while it is open, ETCH CRANK's audio **stops**. A 4 s recording with the menu open was all zero, and the callback ran 4 times in about 5.5 s, against about 115 times a second while playing. The game's millisecond clock also stops.
+* **System menu:** while it is open, ETCH CRANK's audio **stops**, and it resumes when the menu closes. `tools/sim_menu_test.py` checks this reproducibly. It confirms from a screenshot that the menu really is open, then records each phase. Three runs out of three (`docs/sim_menu_test.txt`):
+  * playing: −11 dBFS
+  * menu open: digital silence, peak 0
+  * menu closed again: −11 dBFS
+
+  In an earlier manual probe the callback ran 4 times in about 5.5 s with the menu up, against about 115 times a second while playing, and the game's millisecond clock stopped too.
 
 ## 3. What I could not verify
 

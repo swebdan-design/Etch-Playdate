@@ -73,6 +73,12 @@ python3 tools/sim_drive.py
 Drives the Playdate Simulator headless. It needs Xvfb, PulseAudio and xdotool.
 
 ```bash
+python3 tools/sim_menu_test.py
+```
+
+Checks whether the audio keeps running while the system menu is open. (In the Simulator it doesn't.)
+
+```bash
 tools/verify_corrosion.sh /path/to/Etch---GB /path/to/ETCH-DS
 ```
 

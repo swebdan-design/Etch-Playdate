@@ -29,4 +29,4 @@ Milestone 1 proves the crank and the sound. These ideas came up while building i
 ## Tooling
 
 * **A cycle-accurate cost estimate.** `tools/arm_cost.py` counts instructions exactly under qemu, but cycles depend on the Playdate's caches and SDRAM. Once hardware figures exist, fit a CPI per stage and keep the tool as a regression check.
-* **The Simulator driver** (`tools/sim_drive.py`) clicks fixed window positions. A menu click sometimes doesn't land; a retry-until-paused loop would make it robust.
+* **The Simulator drivers** (`tools/sim_drive.py`, `tools/sim_menu_test.py`) click fixed positions of the Simulator 3.1.2 window. `sim_menu_test.py` verifies the menu state from a screenshot and retries; `sim_drive.py`'s single menu click can still miss.

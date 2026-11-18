@@ -1,0 +1,12 @@
+run 1
+  playing, menu closed      -11.1 dBFS RMS   peak 0.974
+  system menu open         -240.0 dBFS RMS   peak 0.000   (silent)
+  menu closed again         -11.3 dBFS RMS   peak 0.974
+run 2
+  playing, menu closed      -11.0 dBFS RMS   peak 0.909
+  system menu open         -240.0 dBFS RMS   peak 0.000   (silent)
+  menu closed again         -10.8 dBFS RMS   peak 0.925
+run 3
+  playing, menu closed      -11.3 dBFS RMS   peak 0.974
+  system menu open         -240.0 dBFS RMS   peak 0.000   (silent)
+  menu closed again         -11.2 dBFS RMS   peak 0.992
