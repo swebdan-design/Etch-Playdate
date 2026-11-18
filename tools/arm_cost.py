@@ -54,11 +54,11 @@ FN_STAGE = {
     "audio_render_block": "EVENTS", "live_drain": "EVENTS", "acid_event": "EVENTS", "drum_event": "EVENTS",
     "crank_command": "RESAMPLE",
 }
-FILE_STAGE = {"seq_core": "SEQ", "pump": "RESAMPLE", "app_glue": "UPDATE", "names": "UPDATE", "crank_audio": "ACID", "evolve": "UPDATE",
+FILE_STAGE = {"rust": "RUST", "layers": "LAYERS", "answer": "UPDATE", "foundry_guard": "EVENTS", "seq_core": "SEQ", "pump": "RESAMPLE", "app_glue": "UPDATE", "names": "UPDATE", "crank_audio": "ACID", "evolve": "UPDATE",
               "corrosion": "UPDATE", "pattern": "UPDATE", "crank": "UPDATE", "edit": "UPDATE",
               "demo": "UPDATE", "acid.arm": "ACID", "foundry.arm": "DRUMS", "fx.arm": "FX?",
               "render.arm": "EVENTS"}
-ORDER = ["ACID", "DRUMS", "DRIVE", "CRUSH", "DELAY", "COMB", "LIMIT", "EVENTS", "SEQ", "RESAMPLE"]
+ORDER = ["ACID", "RUST", "DRUMS", "LAYERS", "DRIVE", "CRUSH", "DELAY", "COMB", "LIMIT", "EVENTS", "SEQ", "RESAMPLE"]
 
 
 def build():
@@ -152,12 +152,15 @@ def stage_of(fn, files):
     return "OTHER(" + fn + ")"
 
 
+SCENARIOS = ("song", "stress", "full")
+
+
 def main():
     secs = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0
     exe = build()
     files = fn_files()
     results = {}
-    for scen in ("song", "stress"):
+    for scen in SCENARIOS:
         a = trace(exe, scen, 0.3)
         b = trace(exe, scen, 0.3 + secs)
         st = defaultdict(float)
@@ -167,27 +170,26 @@ def main():
                 st[stage_of(fn, files)] += d / secs
         results[scen] = st
     print("Instructions per second of audio, Cortex-M7 build (qemu trace, %.1f s steady state)" % secs)
-    print("and %% of a 168 MHz core at CPI 1.0 / 1.5 / 2.5\n" % ())
-    print("%-10s %14s %22s %14s %22s" % ("stage", "song Minsn/s", "song % (CPI 1/1.5/2.5)",
-                                         "stress Minsn/s", "stress % (CPI 1/1.5/2.5)"))
-    keys = ORDER + sorted(k for k in set(results["song"]) | set(results["stress"]) if k not in ORDER)
-    tot = {"song": 0.0, "stress": 0.0}
+    print("M instr/s, and %% of a 168 MHz core at CPI 1.0 / 1.5 / 2.5\n")
+    hdr = "%-9s" % "stage"
+    for scen in SCENARIOS:
+        hdr += " | %-7s %-17s" % (scen, "")
+    print(hdr)
+    keys = ORDER + sorted(k for k in set().union(*[set(results[x]) for x in SCENARIOS])
+                          if k not in ORDER and not k.startswith("OTHER"))
+    tot = {x: 0.0 for x in SCENARIOS}
+    def cell(v):
+        return " | %6.2f  %4.1f/%4.1f/%4.1f" % (v / 1e6, v / 168e6 * 100, v * 1.5 / 168e6 * 100, v * 2.5 / 168e6 * 100)
     for k in keys:
-        row = []
-        for scen in ("song", "stress"):
-            v = results[scen].get(k, 0.0)
-            if k != "UPDATE" and not k.startswith("OTHER") and k != "LIBC":
-                tot[scen] += v
-            row.append(v)
-        if max(row) < 1:
+        vals = [results[x].get(k, 0.0) for x in SCENARIOS]
+        if max(vals) < 1e4:
             continue
-        print("%-10s %14.2f %22s %14.2f %22s" % (
-            k, row[0] / 1e6, "%.1f / %.1f / %.1f" % tuple(row[0] * c / 168e6 * 100 for c in (1, 1.5, 2.5)),
-            row[1] / 1e6, "%.1f / %.1f / %.1f" % tuple(row[1] * c / 168e6 * 100 for c in (1, 1.5, 2.5))))
-    print("%-10s %14.2f %22s %14.2f %22s" % (
-        "AUDIO", tot["song"] / 1e6, "%.1f / %.1f / %.1f" % tuple(tot["song"] * c / 168e6 * 100 for c in (1, 1.5, 2.5)),
-        tot["stress"] / 1e6, "%.1f / %.1f / %.1f" % tuple(tot["stress"] * c / 168e6 * 100 for c in (1, 1.5, 2.5))))
-    print("\n(AUDIO = everything in the audio callback; UPDATE, LIBC and OTHER are listed for completeness)")
+        for x, v in zip(SCENARIOS, vals):
+            if k not in ("UPDATE", "LIBC"):
+                tot[x] += v
+        print("%-9s" % k + "".join(cell(v) for v in vals))
+    print("%-9s" % "AUDIO" + "".join(cell(tot[x]) for x in SCENARIOS))
+    print("\n(AUDIO = everything in the audio callback; UPDATE = the update loop, LIBC = memcpy etc.)")
 
 
 if __name__ == "__main__":
