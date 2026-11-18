@@ -23,6 +23,7 @@
 #include "cpl.h"
 #include "demos.h"
 #include "ui.h"
+#include "layers.h"
 
 static const char *const own_path = "etch_crank.sav";
 
@@ -79,6 +80,7 @@ static void settle(void)
 {
     crank_ui_reload(acid_p.cutoff, acid_p.res);
     cpl_sync_base();
+    layers_project_loaded();
     ui_fill_on = 0;
     ui_goto(SCR_LIVE);
 }

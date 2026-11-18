@@ -97,7 +97,6 @@ int main(void)
     shared_init();
     proj_init();
     cpl_init();
-    layers_init();
     pump_init(SH);
     crank_ui_init(acid_p.cutoff, acid_p.res, 1);
     screen_init();

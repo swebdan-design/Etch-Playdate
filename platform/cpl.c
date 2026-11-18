@@ -13,6 +13,7 @@
 #include "pump.h"
 #include "storage.h"
 #include "ui.h"
+#include "layers.h"
 
 cpl_project_t cplp;
 cpl_settings_t cpl_set = { SPK_AUTO, 0, 0 };
@@ -42,18 +43,33 @@ void cpl_sync_base(void)
     base_fx = fx_p;
 }
 
+static void bind_layers(void)
+{
+    layers_bind(cplp.layers, sizeof cplp.layers);
+    layers_knob[EK_ENVMOD] = &base_acid.envmod;
+    layers_knob[EK_DECAY] = &base_acid.decay;
+    layers_knob[EK_ACCENT] = &base_acid.accent;
+    layers_knob[EK_DRVAMT] = &base_acid.drive_amt;
+    layers_knob[EK_RUSTRES] = &LD->rust.res;
+    layers_knob[EK_RUSTCUT] = &LD->rust.cutoff;
+    layers_knob[EK_DLYMIX] = &base_fx.dly_mix;
+    layers_knob[EK_COMBMIX] = &base_fx.comb_mix;
+}
+
 void cpl_new_project(void)
 {
     memset(&cplp, 0, sizeof cplp);
     cplp.lfo_rate = 6;
     cplp.mgroup[0] = 0x06;        /* KICK + SNARE */
     cplp.mgroup[1] = 0x18;        /* the hats     */
+    bind_layers();
 }
 
 void cpl_init(void)
 {
     cpl_new_project();
     cpl_sync_base();
+    layers_init();
 }
 
 void cpl_before_save(void)
@@ -374,6 +390,8 @@ void cpl_frame(uint32_t now_ms, float tilt_x, int headphones)
         static const uint16_t hz100[16] = { 10, 15, 25, 40, 60, 80, 100, 130, 170, 220, 280, 360, 460, 600, 800, 1200 };
         lfo_phase += (uint32_t)hz100[cplp.lfo_rate & 15] * 65536u / 100u * dt / 1000u;
     }
+    layers_has_ext = cplp.has_ext;
+    layers_ext_seed = cpl_ext_seed();
     rec_frame(now_ms);
     if (SH->evo_commits != last_commits) {
         last_commits = SH->evo_commits;
@@ -495,6 +513,7 @@ uint8_t cpl_load_slot(uint8_t slot)
     fclose(f);
     if (etch_fletcher16(buf, size) != (uint16_t)(hdr[12] | hdr[13] << 8)) return 0;
     memcpy(&cplp, buf, size);
+    bind_layers();
     return 1;
 }
 

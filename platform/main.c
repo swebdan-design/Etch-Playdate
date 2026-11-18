@@ -195,7 +195,6 @@ static void boot(void)
     proj_init();
     cpl_init();
     cpl_settings_load();
-    layers_init();
     pump_init(SH);
     crank_ui_init(acid_p.cutoff, acid_p.res, (uint8_t)pd->system->isCrankDocked());
     screen_init();

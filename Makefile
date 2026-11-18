@@ -33,7 +33,8 @@ PLAT_SRC   = platform/main.c platform/pump.c platform/crank.c platform/crank_aud
              platform/gfx1.c platform/font_ui.c platform/ui.c platform/scr_live.c \
              platform/scr_track.c platform/scr_synth.c platform/scr_gen.c platform/scr_song.c \
              platform/scr_file.c platform/cpl.c platform/pdfile.c platform/proj.c \
-             platform/demos.c platform/foundry_guard.c layers/layers.c
+             platform/demos.c platform/foundry_guard.c layers/layers.c layers/rust.c \
+             layers/answer.c
 
 SRC     = $(PLAT_SRC) $(ENGINE_SRC) $(CORR_SRC)
 UINCDIR = platform engine corrosion layers
@@ -45,6 +46,7 @@ VPATH  += platform:engine:corrosion:layers
 # onto the Playdate's file API for ETCH DS's storage code
 WRAPS = -Wl,--wrap=acid_render -Wl,--wrap=fx_limit -Wl,--wrap=corr_mutate \
         -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build \
+        -Wl,--wrap=acid_step -Wl,--wrap=foundry_render \
         -Wl,--wrap=fopen -Wl,--wrap=fclose -Wl,--wrap=fread -Wl,--wrap=fwrite \
         -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fflush
 

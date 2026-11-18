@@ -16,6 +16,7 @@
  */
 #include "audio.h"
 #include "plat.h"
+#include "layers.h"
 
 static volatile uint8_t rebuilding;
 static volatile uint8_t held_lanes, held_kits;
@@ -41,7 +42,10 @@ void __wrap_foundry_trigger(uint8_t lanes, uint8_t kits)
         held_lanes = 0;
         __real_foundry_trigger(l, k);
     }
-    if (lanes) __real_foundry_trigger(lanes, kits);
+    if (lanes) {
+        __real_foundry_trigger(lanes, kits);
+        layers_on_trigger(lanes);           /* the ratchets see what fired */
+    }
 }
 
 /* once per block, from the pump: a held hit plays as soon as it may */

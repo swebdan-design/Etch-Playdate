@@ -19,12 +19,14 @@ ENGINE := $(ROOT)/engine/acid.arm.c $(ROOT)/engine/foundry.arm.c $(ROOT)/engine/
           $(ROOT)/engine/demo.c $(ROOT)/engine/evolve.c
 APP    := $(ROOT)/engine/edit.c $(ROOT)/engine/storage.c
 PORT   := $(ROOT)/platform/pump.c $(ROOT)/platform/crank.c $(ROOT)/platform/crank_audio.c \
-          $(ROOT)/platform/resample_tab.c $(ROOT)/platform/app_glue.c $(ROOT)/platform/foundry_guard.c
+          $(ROOT)/platform/resample_tab.c $(ROOT)/platform/app_glue.c $(ROOT)/platform/foundry_guard.c \
+          $(ROOT)/layers/layers.c $(ROOT)/layers/rust.c $(ROOT)/layers/answer.c
 UI     := $(ROOT)/platform/gfx1.c $(ROOT)/platform/font_ui.c $(ROOT)/platform/ui.c \
           $(ROOT)/platform/scr_live.c $(ROOT)/platform/scr_track.c $(ROOT)/platform/scr_synth.c \
           $(ROOT)/platform/scr_gen.c $(ROOT)/platform/scr_song.c $(ROOT)/platform/scr_file.c \
-          $(ROOT)/platform/cpl.c $(ROOT)/platform/proj.c $(ROOT)/platform/demos.c $(ROOT)/layers/layers.c
-WRAP   := -Wl,--wrap=acid_render -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build
+          $(ROOT)/platform/cpl.c $(ROOT)/platform/proj.c $(ROOT)/platform/demos.c
+WRAP   := -Wl,--wrap=acid_render -Wl,--wrap=foundry_trigger -Wl,--wrap=foundry_build \
+          -Wl,--wrap=acid_step -Wl,--wrap=foundry_render
 UIWRAP := $(WRAP) -Wl,--wrap=fx_limit -Wl,--wrap=corr_mutate
 OUT    := $(ROOT)/build/host
 
